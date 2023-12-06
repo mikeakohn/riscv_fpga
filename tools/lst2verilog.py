@@ -16,14 +16,14 @@ print("// This is a hardcoded program that blinks an external LED.\n")
 print("module rom")
 print("(")
 print("  input  [9:0] address,")
-print("  output [7:0] data_out")
+print("  output [31:0] data_out")
 print(");\n")
 
-print("reg [7:0] data;")
+print("reg [31:0] data;")
 print("assign data_out = data;\n")
 
 print("always @(address) begin")
-print("  case (address)")
+print("  case (address[9:2])")
 
 indent = "    "
 address = 0
@@ -44,9 +44,12 @@ for line in fp:
     opcodes[2:4],
   ]
 
-  for opcode in opcodes:
-    print(indent + str(address) + ": data <= 8'h" + opcode + ";")
-    address += 1
+  #for opcode in opcodes:
+  #  print(indent + str(address) + ": data <= 8'h" + opcode + ";")
+  #  address += 1
+
+  print(indent + str(address) + ": data <= 32'h" + opcodes[3] + opcodes[2] + opcodes[1] + opcodes[0] + ";")
+  address += 1
 
 fp.close()
 

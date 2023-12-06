@@ -12,44 +12,26 @@
 module rom
 (
   input  [9:0] address,
-  output [7:0] data_out
+  output [31:0] data_out
 );
 
-reg [7:0] data;
+reg [31:0] data;
 assign data_out = data;
 
 always @(address) begin
-  case (address)
-    // lui x5, 0x000000
-    0: data <= 8'hb7;
-    1: data <= 8'h02;
-    2: data <= 8'h00;
-    3: data <= 8'h00;
-    // ori x5, 0x8
-    4: data <= 8'h93;
-    5: data <= 8'he2;
-    6: data <= 8'h82;
-    7: data <= 8'h00;
-    // addi x6, x0, 137 (0x000089)
-    8: data <= 8'h13;
-    9: data <= 8'h03;
-    10: data <= 8'h90;
-    11: data <= 8'h08;
-    // sb x6, 5(x5)
-    12: data <= 8'ha3;
-    13: data <= 8'h82;
-    14: data <= 8'h62;
-    15: data <= 8'h00;
-    // lb x7, 5(x5)
-    16: data <= 8'h83;
-    17: data <= 8'h83;
-    18: data <= 8'h52;
-    19: data <= 8'h00;
+  case (address[9:2])
+    // lui t0, 0x00000c
+    0: data <= 32'h0000c2b7;
+    // addi t0, t0, 137 (0x000089)
+    1: data <= 32'h08928293;
+    // addi t1, zero, 100 (0x000064)
+    2: data <= 32'h06400313;
+    // sb t1, 5(t0)
+    3: data <= 32'h006282a3;
+    // lb t2, 5(t0)
+    4: data <= 32'h00528383;
     // ebreak
-    20: data <= 8'h73;
-    21: data <= 8'h00;
-    22: data <= 8'h10;
-    23: data <= 8'h00;
+    5: data <= 32'h00100073;
     default: data <= 0;
   endcase
 end

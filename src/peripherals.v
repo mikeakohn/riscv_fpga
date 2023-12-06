@@ -1,4 +1,4 @@
-// RISC-V FPGA Soft Processor
+// Ferrati F100-L FPGA Soft Processor
 //  Author: Michael Kohn
 //   Email: mike@mikekohn.net
 //     Web: https://www.mikekohn.net/
@@ -9,17 +9,25 @@
 
 module peripherals
 (
-  input [5:0] address,
-  input [7:0] data_in,
-  output reg [7:0] data_out,
-  input write_enable,
-  input clk,
-  input raw_clk,
+  input enable,
+  input [7:0] address,
+  input [31:0] data_in,
+  output reg [31:0] data_out,
+  //output [7:0] debug,
+  input  write_enable,
+  input  clk,
+  input  raw_clk,
   output speaker_p,
   output speaker_m,
   output ioport_0,
-  input button_0,
-  input reset
+  output ioport_1,
+  output ioport_2,
+  output ioport_3,
+  input  button_0,
+  input  reset,
+  output spi_clk,
+  output spi_mosi,
+  input  spi_miso
 );
 
 reg [7:0] storage [3:0];
@@ -34,8 +42,27 @@ reg speaker_value_m;
 assign speaker_p = speaker_value_p;
 assign speaker_m = speaker_value_m;
 
-reg [7:0] ioport = 0;
-assign ioport_0 = ioport[0];
+reg [7:0] ioport_a = 0;
+assign ioport_0 = ioport_a[0];
+reg [7:0] ioport_b = 0; // 8'hf0;
+assign ioport_1 = ioport_b[0];
+assign ioport_2 = ioport_b[1];
+assign ioport_3 = ioport_b[2];
+
+//assign debug = ioport_b;
+//assign debug = spi_tx_buffer;
+
+wire [7:0] spi_rx_buffer;
+reg  [15:0] spi_tx_buffer;
+wire spi_busy;
+reg spi_start;
+reg spi_width_16;
+
+reg [15:0] mandelbrot_r;
+reg [15:0] mandelbrot_i;
+wire mandelbrot_busy;
+reg mandelbrot_start;
+wire [3:0] mandelbrot_result;
 
 always @(button_0) begin
   buttons = { 7'b0, ~button_0 };
@@ -59,15 +86,27 @@ always @(posedge raw_clk) begin
   end
 end
 
-always @(posedge clk) begin
+// FIXME: Fix this...
+// This should be able to be clk instead of raw_clk, but it seems that
+// two consecutive writes this module keeps stale data in data_in. So
+// will put 6 into both 0x4008 and 0x400a
+// Wiring to RAM in between keeps data_in with the correct result.
+always @(posedge raw_clk) begin
+//always @(posedge enable) begin
   if (reset) speaker_value_high <= 0;
 
   if (write_enable) begin
-    case (address[5:0])
-      8: ioport <= data_in;
-      9:
+    case (address[7:2])
+      5'h1: spi_tx_buffer <= data_in;
+      5'h3:
         begin
-          case (data_in)
+          if (data_in[1] == 1) spi_start <= 1;
+          spi_width_16 <= data_in[2];
+        end
+      5'h8: ioport_a <= data_in;
+      5'h9:
+        begin
+          case (data_in[7:0])
             60: speaker_value_high <= 45866; // C4  261.63
             61: speaker_value_high <= 43293; // C#4 277.18
             62: speaker_value_high <= 40863; // D4 293.66
@@ -108,13 +147,55 @@ always @(posedge clk) begin
             default: speaker_value_high <= 0;
           endcase
         end
+      5'ha: ioport_b <= data_in;
+      5'hb: mandelbrot_r <= data_in;
+      5'hc: mandelbrot_i <= data_in;
+      5'hd: if (data_in[1] == 1) mandelbrot_start <= 1;
     endcase
   end else begin
-    case (address[5:0])
-      0: data_out <= buttons;
-    endcase
+    if (spi_start && spi_busy) spi_start <= 0;
+    if (mandelbrot_start && mandelbrot_busy) mandelbrot_start <= 0;
+
+    if (enable) begin
+      case (address[7:2])
+        5'h0: data_out <= buttons;
+        5'h1: data_out <= spi_tx_buffer;
+        5'h2: data_out <= spi_rx_buffer;
+        5'h3: data_out <= { 5'b0000000, spi_width_16, 1'b0, spi_busy };
+        5'h8: data_out <= ioport_a;
+        5'ha: data_out <= ioport_b;
+        5'hb: data_out <= mandelbrot_r;
+        5'hc: data_out <= mandelbrot_i;
+        5'hd: data_out <= { 7'b0000000, mandelbrot_busy };
+        5'he: data_out <= { 12'b00000000000, mandelbrot_result };
+        default: data_out <= 0;
+      endcase
+    end
   end
 end
+
+spi spi_0
+(
+  .raw_clk  (raw_clk),
+  .start    (spi_start),
+  .width_16 (spi_width_16),
+  .data_tx  (spi_tx_buffer),
+  .data_rx  (spi_rx_buffer),
+  .busy     (spi_busy),
+  .sclk     (spi_clk),
+  .mosi     (spi_mosi),
+  .miso     (spi_miso)
+);
+
+mandelbrot mandelbrot_0
+(
+  .raw_clk  (raw_clk),
+  .start    (mandelbrot_start),
+  .curr_r   (mandelbrot_r),
+  .curr_i   (mandelbrot_i),
+  .result   (mandelbrot_result),
+  .busy     (mandelbrot_busy)
+);
 
 endmodule
 

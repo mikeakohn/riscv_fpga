@@ -19,10 +19,16 @@ module riscv
   output speaker_p,
   output speaker_m,
   output ioport_0,
+  output ioport_1,
+  output ioport_2,
+  output ioport_3,
   input  button_reset,
   input  button_halt,
   input  button_program_select,
-  input  button_0
+  input  button_0,
+  output spi_clk,
+  output spi_mosi,
+  input  spi_miso
 );
 
 // iceFUN 8x4 LEDs used for debugging.
@@ -37,9 +43,11 @@ reg [15:0] mem_address = 0;
 reg [31:0] mem_write = 0;
 reg [3:0] mem_write_mask = 0;
 wire [31:0] mem_read;
-wire mem_data_ready;
+//wire mem_data_ready;
 reg mem_bus_enable = 0;
 reg mem_write_enable = 0;
+
+wire [7:0] mem_debug;
 
 // Clock.
 reg [21:0] count = 0;
@@ -111,6 +119,7 @@ end
 always @(posedge raw_clk) begin
   case (count[9:7])
     3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[7][7:0]; end
+    //3'b000: begin column_value <= 4'b0111; leds_value <= ~mem_debug; end
     3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
     3'b100: begin column_value <= 4'b1101; leds_value <= ~pc[7:0]; end
     3'b110: begin column_value <= 4'b1110; leds_value <= ~state; end
@@ -136,6 +145,8 @@ parameter STATE_EEPROM_READ =  22;
 parameter STATE_EEPROM_WAIT =  23;
 parameter STATE_EEPROM_WRITE = 24;
 parameter STATE_EEPROM_DONE =  25;
+
+parameter STATE_TURD  =        27;
 
 // 00_000_000
 //parameter OP_DCR = 6'b000_001;
@@ -175,7 +186,6 @@ always @(posedge clk) begin
           delay_loop <= 12000;
           //eeprom_strobe <= 0;
           state <= STATE_DELAY_LOOP;
-          registers[0] <= 0;
         end
       STATE_DELAY_LOOP:
         begin
@@ -187,7 +197,7 @@ always @(posedge clk) begin
               pc <= 16'h4000;
               registers[1] <= 8'hc0;
             end else begin
-              pc <= 0;
+              pc <= 16'hc000;
               registers[1] <= 8'h99;
             end
 
@@ -199,6 +209,7 @@ always @(posedge clk) begin
         end
       STATE_FETCH_OP_0:
         begin
+          registers[0] <= 0;
           mem_bus_enable <= 1;
           mem_write_enable <= 0;
           mem_address <= pc;
@@ -207,14 +218,9 @@ always @(posedge clk) begin
         end
       STATE_FETCH_OP_1:
         begin
-          if (mem_data_ready) begin
-            mem_bus_enable <= 0;
-            instruction <= mem_read;
-
-            state <= STATE_START_DECODE;
-          end else begin
-            state <= STATE_FETCH_OP_1;
-          end
+          mem_bus_enable <= 0;
+          instruction <= mem_read;
+          state <= STATE_START_DECODE;
         end
       STATE_START_DECODE:
         begin
@@ -310,7 +316,7 @@ always @(posedge clk) begin
                     if (instruction[31:25] == 0)
                       registers[rd] <= registers[rs1] >> shamt;
                     else
-                      registers[rd] <= sign(registers[rs1]) >> shamt;
+                      registers[rd] <= sign(registers[rs1]) >>> shamt;
                 endcase
 
                 state <= STATE_FETCH_OP_0;
@@ -343,7 +349,7 @@ always @(posedge clk) begin
               end
             default
               begin
-                state <= STATE_HALTED;
+                state <= STATE_ERROR;
               end
           endcase
         end
@@ -355,7 +361,6 @@ always @(posedge clk) begin
         end
       STATE_FETCH_LOAD_1:
         begin
-          if (mem_data_ready) begin
             mem_bus_enable <= 0;
 
             case (memory_size[1:0])
@@ -406,9 +411,6 @@ always @(posedge clk) begin
             endcase
 
             state <= STATE_FETCH_OP_0;
-          end else begin
-            state <= STATE_FETCH_LOAD_1;
-          end
         end
       STATE_STORE_0:
         begin
@@ -466,15 +468,17 @@ always @(posedge clk) begin
         end
       STATE_STORE_1:
         begin
-          if (mem_data_ready) begin
-            mem_bus_enable <= 0;
-            mem_write_enable <= 0;
-            state <= STATE_FETCH_OP_0;
-          end
+          mem_bus_enable <= 0;
+          mem_write_enable <= 0;
+          state <= STATE_FETCH_OP_0;
         end
       STATE_HALTED:
         begin
           state <= STATE_HALTED;
+        end
+      STATE_ERROR:
+        begin
+          state <= STATE_ERROR;
         end
     endcase
 end
@@ -483,19 +487,24 @@ memory_bus memory_bus_0(
   .address      (mem_address),
   .data_in      (mem_write),
   .write_mask   (mem_write_mask),
-  .data_read    (mem_read),
-  .data_ready   (mem_data_ready),
+  .data_out     (mem_read),
+  .debug        (mem_debug),
+  //.data_ready   (mem_data_ready),
   .bus_enable   (mem_bus_enable),
   .write_enable (mem_write_enable),
   .clk          (clk),
   .raw_clk      (raw_clk),
-  .double_clk   (clock_div[6]),
   .speaker_p    (speaker_p),
   .speaker_m    (speaker_m),
   .ioport_0     (ioport_0),
+  .ioport_1     (ioport_1),
+  .ioport_2     (ioport_2),
+  .ioport_3     (ioport_3),
   .button_0     (button_0),
-  .reset        (~button_reset)
-  //.debug        (debug_1)
+  .reset        (~button_reset),
+  .spi_clk      (spi_clk),
+  .spi_mosi     (spi_mosi),
+  .spi_miso     (spi_miso)
 );
 
 eeprom eeprom_0

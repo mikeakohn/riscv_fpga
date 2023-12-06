@@ -1,11 +1,11 @@
-// RISC-V FPGA Soft Processor
+// Ferrati F100-L FPGA Soft Processor
 //  Author: Michael Kohn
 //   Email: mike@mikekohn.net
 //     Web: https://www.mikekohn.net/
 //   Board: iceFUN iCE40 HX8K
 // License: MIT
 //
-// Copyright 2022 by Michael Kohn
+// Copyright 2023 by Michael Kohn
 
 // The purpose of this module is to route reads and writes to the 4
 // different memory banks. Originally the idea was to have ROM and RAM
@@ -18,226 +18,93 @@ module memory_bus
   input  [15:0] address,
   input  [31:0] data_in,
   input  [3:0] write_mask,
-  output reg [31:0] data_read,
-  output reg data_ready,
+  output [31:0] data_out,
+  output [7:0] debug,
   input bus_enable,
   input write_enable,
   input clk,
   input raw_clk,
-  input double_clk,
   output speaker_p,
   output speaker_m,
   output ioport_0,
-  input button_0,
-  input reset
-  //output reg [7:0] debug
+  output ioport_1,
+  output ioport_2,
+  output ioport_3,
+  input  button_0,
+  input  reset,
+  output spi_clk,
+  output spi_mosi,
+  input  spi_miso
 );
 
-wire [7:0] rom_data_out;
-wire [7:0] ram_data_out;
-wire [7:0] peripherals_data_out;
-wire [7:0] block_ram_data_out;
+wire [31:0] rom_data_out;
+wire [31:0] ram_data_out;
+wire [31:0] peripherals_data_out;
+wire [31:0] block_ram_data_out;
 
-wire [7:0] data_out;
+wire ram_write_enable;
+wire peripherals_write_enable;
+wire block_ram_write_enable;
 
-wire [1:0] bank;
-assign bank = address[15:14];
+assign ram_write_enable = (address[15:14] == 2'b00) && write_enable;
+assign peripherals_write_enable = (address[15:14] == 2'b10) && write_enable;
+assign block_ram_write_enable = (address[15:14] == 2'b11) && write_enable;
 
-reg [7:0] ram_data_in;
-reg [7:0] peripherals_data_in;
-reg [7:0] block_ram_data_in;
-
-reg [13:0] ea;
-reg [2:0] byte_count = 0;
-
-reg ram_write_enable;
-reg peripherals_write_enable;
-reg block_ram_write_enable;
-
-wire block_ram_chip_enable;
-assign block_ram_chip_enable = bus_enable & address[15] & address[14];
+// FIXME: The RAM probably need an enable also.
+wire peripherals_enable;
+assign peripherals_enable = (address[15:14] == 2'b10) && bus_enable;
 
 // Based on the selected bank of memory (address[15:14]) select if
-// memory should read from ram.v, rom.v, peripherals.v or hardcoded 0.
-// bank 00: ram
-// bank 01: rom
-// bank 10: peripherals
-// bank 11: block_ram
-assign data_out = bank[1] == 0 ?
-  (bank[0] == 0 ? ram_data_out         : rom_data_out) :
-  (bank[0] == 0 ? peripherals_data_out : block_ram_data_out);
-
-// Based on the selected bank of memory, decided which module the
-// memory write should be sent to.
-always @(posedge clk) begin
-  if (bus_enable) begin
-    ea <= { address[13:2], byte_count[2:1] };
-
-    if (write_enable) begin
-      case (bank)
-        2'b00:
-          begin
-            case (byte_count)
-              0:
-                begin
-                  ram_data_in <= data_in[7:0];
-                  ram_write_enable <= write_mask[0] == 0;
-                end
-              2:
-                begin
-                  ram_data_in <= data_in[15:8];
-                  ram_write_enable <= write_mask[1] == 0;
-                end
-              4:
-                begin
-                  ram_data_in <= data_in[23:16];
-                  ram_write_enable <= write_mask[2] == 0;
-                end
-              6:
-                begin
-                  ram_data_in <= data_in[31:24];
-                  ram_write_enable <= write_mask[3] == 0;
-                end
-              default:
-                begin
-                  ram_write_enable <= 0;
-                end
-            endcase
-
-            peripherals_write_enable <= 0;
-            block_ram_write_enable <= 0;
-          end
-        2'b01:
-          begin
-            ram_write_enable <= 0;
-            peripherals_write_enable <= 0;
-            block_ram_write_enable <= 0;
-          end
-        2'b10:
-          begin
-            case (byte_count)
-              0:
-                begin
-                  peripherals_data_in <= data_in[7:0];
-                  peripherals_write_enable <= write_mask[0] == 0;
-                end
-              2:
-                begin
-                  peripherals_data_in <= data_in[15:8];
-                  peripherals_write_enable <= write_mask[1] == 0;
-                end
-              4:
-                begin
-                  peripherals_data_in <= data_in[23:16];
-                  peripherals_write_enable <= write_mask[2] == 0;
-                end
-              6:
-                begin
-                  peripherals_data_in <= data_in[31:24];
-                  peripherals_write_enable <= write_mask[3] == 0;
-                end
-              default:
-                begin
-                  peripherals_write_enable <= 0;
-                end
-            endcase
-
-            ram_write_enable <= 0;
-            block_ram_write_enable <= 0;
-          end
-        2'b11:
-          begin
-            case (byte_count)
-              0:
-                begin
-                  block_ram_data_in <= data_in[7:0];
-                  block_ram_write_enable <= write_mask[0] == 0;
-                end
-              2:
-                begin
-                  block_ram_data_in <= data_in[15:8];
-                  block_ram_write_enable <= write_mask[1] == 0;
-                end
-              4:
-                begin
-                  block_ram_data_in <= data_in[23:16];
-                  block_ram_write_enable <= write_mask[2] == 0;
-                end
-              6:
-                begin
-                  block_ram_data_in <= data_in[31:24];
-                  block_ram_write_enable <= write_mask[3] == 0;
-                end
-              default:
-                begin
-                  block_ram_write_enable <= 0;
-                end
-            endcase
-
-            ram_write_enable <= 0;
-            peripherals_write_enable <= 0;
-          end
-      endcase
-
-      data_ready <= byte_count == 7 ? 1 : 0;
-      byte_count <= byte_count + 1;
-    end else begin
-      case (byte_count)
-        1: data_read[7:0]   <= data_out;
-        3: data_read[15:8]  <= data_out;
-        5: data_read[23:16] <= data_out;
-        7: data_read[31:24] <= data_out;
-      endcase
-
-      data_ready <= byte_count == 7 ? 1 : 0;
-      byte_count <= byte_count + 1;
-    end
-  end else begin
-    ram_write_enable <= 0;
-    peripherals_write_enable <= 0;
-    block_ram_write_enable <= 0;
-    data_ready <= 0;
-    byte_count <= 0;
-  end
-end
+// memory should read from ram.v, rom.v, peripherals.v.
+assign data_out = address[15] == 0 ?
+  (address[14] == 0 ? ram_data_out         : rom_data_out) :
+  (address[14] == 0 ? peripherals_data_out : block_ram_data_out);
 
 rom rom_0(
-  .address   ( { address[9:2], byte_count[2:1] } ),
+  .address   (address[9:0]),
   .data_out  (rom_data_out)
 );
 
 ram ram_0(
-  .address      ( { address[9:2], byte_count[2:1] } ),
-  .data_in      (ram_data_in),
+  .address      (address[9:0]),
+  .data_in      (data_in),
   .data_out     (ram_data_out),
+  //.debug        (debug),
+  .write_mask   (write_mask),
   .write_enable (ram_write_enable),
-  .clk          (clk)
-  //.double_clk   (double_clk)
-  //.debug        (debug)
+  .clk          (raw_clk),
 );
 
 peripherals peripherals_0(
-  .address      ( { address[5:2], byte_count[2:1] } ),
-  .data_in      (peripherals_data_in),
+  .enable       (peripherals_enable),
+  .address      (address[7:0]),
+  .data_in      (data_in),
   .data_out     (peripherals_data_out),
+  //.debug        (debug),
   .write_enable (peripherals_write_enable),
   .clk          (clk),
   .raw_clk      (raw_clk),
   .speaker_p    (speaker_p),
   .speaker_m    (speaker_m),
   .ioport_0     (ioport_0),
+  .ioport_1     (ioport_1),
+  .ioport_2     (ioport_2),
+  .ioport_3     (ioport_3),
   .button_0     (button_0),
-  .reset        (reset)
+  .reset        (reset),
+  .spi_clk      (spi_clk),
+  .spi_mosi     (spi_mosi),
+  .spi_miso     (spi_miso),
 );
 
-block_ram block_ram_0(
-  .address      ( { address[13:2], byte_count[2:1] } ),
-  .data_in      (block_ram_data_in),
+ram ram_1(
+  .address      (address[9:0]),
+  .data_in      (data_in),
   .data_out     (block_ram_data_out),
-  .chip_enable  (block_ram_chip_enable),
+  .debug        (debug),
+  .write_mask   (write_mask),
   .write_enable (block_ram_write_enable),
-  .clk          (clk),
-  .double_clk   (double_clk)
+  .clk          (raw_clk),
 );
 
 endmodule

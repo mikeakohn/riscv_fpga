@@ -16,12 +16,21 @@ set_io --warn-no-port column[3] C5
 
 # GPIO.
 set_io --warn-no-port ioport_0  C14
+set_io --warn-no-port ioport_1  G14
+set_io --warn-no-port ioport_2  H12
+set_io --warn-no-port ioport_3  J12
 
 # SPI eeprom.
 set_io --warn-no-port eeprom_cs  E12
 set_io --warn-no-port eeprom_clk E14
 set_io --warn-no-port eeprom_di  F12
 set_io --warn-no-port eeprom_do  F14
+
+# SPI peripheral.
+#set_io --warn-no-port spi_cs   J12
+set_io --warn-no-port spi_clk  K12
+set_io --warn-no-port spi_mosi K14
+set_io --warn-no-port spi_miso H11
 
 # Clock signal.
 set_io --warn-no-port raw_clk   P7

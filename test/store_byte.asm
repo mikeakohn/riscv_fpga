@@ -1,12 +1,11 @@
 .riscv
 
+.org 0x4000
 main:
-  lui x5, 0x000
-  ori x5, x5, 0x008
+  li t0, 0xc089
+  li t1, 100
 
-  addi x6, x0, 0x89
-  sb x6, 5(x5)
-
-  lb x7, 5(x5)
+  sb t1, 5(t0)
+  lb t2, 5(t0)
   ebreak
 

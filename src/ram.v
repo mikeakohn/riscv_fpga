@@ -16,30 +16,36 @@
 module ram
 (
   input [9:0] address,
-  input [7:0] data_in,
-  output reg [7:0] data_out,
+  input [31:0] data_in,
+  output reg [31:0] data_out,
+  output reg [7:0] debug,
+  input [3:0] write_mask,
   input write_enable,
   input clk
-  //input double_clk,
 );
 
-reg [7:0] storage [1023:0];
+reg [7:0] storage_0 [255:0];
+reg [7:0] storage_1 [255:0];
+reg [7:0] storage_2 [255:0];
+reg [7:0] storage_3 [255:0];
 
-/*
-initial begin
-  storage[4] <= 8'ha0;
-  storage[5] <= 8'h55;
-  storage[6] <= 8'h99;
-  storage[7] <= 8'h44;
-end
-*/
+wire [7:0] aligned_address;
+assign aligned_address = address[9:2];
 
 //always @(posedge double_clk) begin
 always @(posedge clk) begin
   if (write_enable) begin
-    storage[address] <= data_in;
+    debug <= write_mask;
+
+    if (!write_mask[0]) storage_0[aligned_address] <= data_in[7:0];
+    if (!write_mask[1]) storage_1[aligned_address] <= data_in[15:8];
+    if (!write_mask[2]) storage_2[aligned_address] <= data_in[23:16];
+    if (!write_mask[3]) storage_3[aligned_address] <= data_in[31:24];
   end else
-    data_out = storage[address];
+    data_out[7:0]   <= storage_0[aligned_address];
+    data_out[15:8]  <= storage_1[aligned_address];
+    data_out[23:16] <= storage_2[aligned_address];
+    data_out[31:24] <= storage_3[aligned_address];
 end
 
 endmodule

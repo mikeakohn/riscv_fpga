@@ -1,5 +1,6 @@
 .riscv
 
+.org 0x4000
 main:
   lui x6, 0x12345
   ori x6, x6, 0x678
