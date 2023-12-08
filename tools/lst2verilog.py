@@ -16,13 +16,14 @@ print("// This is a hardcoded program that blinks an external LED.\n")
 print("module rom")
 print("(")
 print("  input  [9:0] address,")
-print("  output [31:0] data_out")
+print("  output [31:0] data_out,")
+print("  input clk")
 print(");\n")
 
 print("reg [31:0] data;")
 print("assign data_out = data;\n")
 
-print("always @(address) begin")
+print("always @(clk) begin")
 print("  case (address[9:2])")
 
 indent = "    "
