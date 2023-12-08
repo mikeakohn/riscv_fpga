@@ -41,11 +41,12 @@ always @(posedge clk) begin
     if (!write_mask[1]) storage_1[aligned_address] <= data_in[15:8];
     if (!write_mask[2]) storage_2[aligned_address] <= data_in[23:16];
     if (!write_mask[3]) storage_3[aligned_address] <= data_in[31:24];
-  end else
+  end else begin
     data_out[7:0]   <= storage_0[aligned_address];
     data_out[15:8]  <= storage_1[aligned_address];
     data_out[23:16] <= storage_2[aligned_address];
     data_out[31:24] <= storage_3[aligned_address];
+  end
 end
 
 endmodule
