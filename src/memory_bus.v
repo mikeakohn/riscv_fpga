@@ -62,7 +62,8 @@ assign data_out = address[15] == 0 ?
 
 rom rom_0(
   .address   (address[9:0]),
-  .data_out  (rom_data_out)
+  .data_out  (rom_data_out),
+  .clk       (raw_clk),
 );
 
 ram ram_0(

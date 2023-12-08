@@ -12,28 +12,18 @@
 module rom
 (
   input  [9:0] address,
-  output [31:0] data_out
+  output reg [31:0] data_out,
+  input clk
 );
 
-reg [31:0] data;
-assign data_out = data;
+reg [31:0] memory [511:0];
 
-always @(address) begin
-  case (address[9:2])
-    // lui t0, 0x00000c
-    0: data <= 32'h0000c2b7;
-    // addi t0, t0, 137 (0x000089)
-    1: data <= 32'h08928293;
-    // addi t1, zero, 100 (0x000064)
-    2: data <= 32'h06400313;
-    // sb t1, 5(t0)
-    3: data <= 32'h006282a3;
-    // lb t2, 5(t0)
-    4: data <= 32'h00528383;
-    // ebreak
-    5: data <= 32'h00100073;
-    default: data <= 0;
-  endcase
+initial begin
+  $readmemh("rom.txt", memory);
+end
+
+always @(posedge clk) begin
+  data_out <= memory[address[9:2]];
 end
 
 endmodule

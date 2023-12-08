@@ -19,19 +19,20 @@ default:
 program:
 	iceFUNprog $(PROGRAM).bin
 
-.PHONY: test
-test:
-	naken_asm -l -type bin -o load_byte.bin test/load_byte.asm
-	naken_asm -l -type bin -o store_byte.bin test/store_byte.asm
-	#naken_asm -l -type bin -o blink.bin test/blink.asm
+blink:
+	naken_asm -l -type bin -o blink.bin test/blink.asm
+	#python3 tools/lst2verilog.py blink.lst > src/rom.v
+	python3 tools/bin2txt.py blink.bin > rom.txt
 
 rom_0:
 	naken_asm -l -type bin -o store_byte.bin test/store_byte.asm
-	python3 tools/lst2verilog.py store_byte.lst > src/rom.v
+	#python3 tools/lst2verilog.py store_byte.lst > src/rom.v
+	python3 tools/bin2txt.py store_byte.bin > rom.txt
 
 rom_1:
 	naken_asm -l -type bin -o load_byte.bin test/load_byte.asm
-	python3 tools/lst2verilog.py load_byte.lst > src/rom.v
+	#python3 tools/lst2verilog.py load_byte.lst > src/rom.v
+	python3 tools/bin2txt.py load_byte.bin > rom.txt
 
 clean:
 	@rm -f $(PROGRAM).bin $(PROGRAM).json $(PROGRAM).asc *.lst
