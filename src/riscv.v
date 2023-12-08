@@ -86,6 +86,9 @@ assign branch_offset = {
   instruction[11:8]
 };
 
+reg [31:0] source;
+reg [31:0] temp;
+
 // Load / Store.
 assign memory_size = instruction[14:12];
 reg [31:0] ea;
@@ -138,6 +141,9 @@ parameter STATE_FETCH_LOAD_1 = 6;
 parameter STATE_STORE_0 =      7;
 parameter STATE_STORE_1 =      8;
 
+parameter STATE_ALU_0 =        9;
+parameter STATE_ALU_1 =        10;
+
 parameter STATE_HALTED =       19;
 parameter STATE_ERROR =        20;
 parameter STATE_EEPROM_START = 21;
@@ -145,11 +151,6 @@ parameter STATE_EEPROM_READ =  22;
 parameter STATE_EEPROM_WAIT =  23;
 parameter STATE_EEPROM_WRITE = 24;
 parameter STATE_EEPROM_DONE =  25;
-
-parameter STATE_TURD  =        27;
-
-// 00_000_000
-//parameter OP_DCR = 6'b000_001;
 
 function signed [31:0] sign(input signed [31:0] data);
   sign = data;
@@ -254,9 +255,9 @@ always @(posedge clk) begin
             7'b1100111:
               begin
                 // jalr.
-                registers[rd] <= pc;
+                temp <= pc;
                 pc <= (pc + registers[rd] + sign12(instruction[31:20])) & 32'hfffffffc;
-                state <= STATE_FETCH_OP_0;
+                state <= STATE_ALU_1;
               end
             7'b1100011:
               begin
@@ -304,44 +305,28 @@ always @(posedge clk) begin
               begin
                 // ALU immediate.
                 case (funct3)
-                  3'b000: registers[rd] <= registers[rs1] + sign12(instruction[31:20]);
-                  3'b010: registers[rd] <= registers[rs1] < sign12(instruction[31:20]);
-                  3'b011: registers[rd] <= registers[rs1] < instruction[31:20];
-                  3'b100: registers[rd] <= registers[rs1] ^ sign12(instruction[31:20]);
-                  3'b110: registers[rd] <= registers[rs1] | sign12(instruction[31:20]);
-                  3'b111: registers[rd] <= registers[rs1] & sign12(instruction[31:20]);
+                  3'b000: temp <= registers[rs1] + sign12(instruction[31:20]);
+                  3'b010: temp <= registers[rs1] < sign12(instruction[31:20]);
+                  3'b011: temp <= registers[rs1] < instruction[31:20];
+                  3'b100: temp <= registers[rs1] ^ sign12(instruction[31:20]);
+                  3'b110: temp <= registers[rs1] | sign12(instruction[31:20]);
+                  3'b111: temp <= registers[rs1] & sign12(instruction[31:20]);
                   // Shift.
-                  3'b001: registers[rd] <= registers[rs1] << shamt;
+                  3'b001: temp <= registers[rs1] << shamt;
                   3'b101:
                     if (instruction[31:25] == 0)
-                      registers[rd] <= registers[rs1] >> shamt;
+                      temp <= registers[rs1] >> shamt;
                     else
-                      registers[rd] <= sign(registers[rs1]) >>> shamt;
+                      temp <= sign(registers[rs1]) >>> shamt;
                 endcase
 
-                state <= STATE_FETCH_OP_0;
+                state <= STATE_ALU_1;
               end
             7'b0110011:
               begin
                 // ALU reg, reg.
-                case (funct3)
-                  3'b000:
-                    if (instruction[31:25] == 0)
-                      registers[rd] <= registers[rs1] + registers[rs2];
-                    else
-                      registers[rd] <= registers[rs1] - registers[rs2];
-                  3'b001: registers[rd] <= registers[rs1] << registers[rs2];
-                  3'b010: registers[rd] <= sign(registers[rs1]) < sign(registers[rs2]);
-                  3'b011: registers[rd] <= registers[rs1] < registers[rs1];
-                  3'b100: registers[rd] <= registers[rs1] ^ registers[rs1];
-                  3'b101:
-                    if (instruction[31:25] == 0)
-                      registers[rd] <= registers[rs1] >> registers[rs2];
-                    else
-                      registers[rd] <= sign(registers[rs1]) >> registers[rs2];
-                  3'b110: registers[rd] <= registers[rs1] | registers[rs1];
-                  3'b111: registers[rd] <= registers[rs1] & registers[rs1];
-                endcase
+                source <= registers[rs2];
+                state <= STATE_ALU_0;
               end
             7'b1110011:
               begin
@@ -470,6 +455,35 @@ always @(posedge clk) begin
         begin
           mem_bus_enable <= 0;
           mem_write_enable <= 0;
+          state <= STATE_FETCH_OP_0;
+        end
+      STATE_ALU_0:
+        begin
+          // ALU reg, reg.
+          case (funct3)
+            3'b000:
+              if (instruction[31:25] == 0)
+                temp <= registers[rs1] + source;
+              else
+                temp <= registers[rs1] - source;
+            3'b001: temp <= registers[rs1] << source;
+            3'b010: temp <= sign(registers[rs1]) < sign(source);
+            3'b011: temp <= registers[rs1] < source;
+            3'b100: temp <= registers[rs1] ^ source;
+            3'b101:
+              if (instruction[31:25] == 0)
+                temp <= registers[rs1] >> source;
+              else
+                temp <= sign(registers[rs1]) >>> source;
+            3'b110: temp <= registers[rs1] | source;
+            3'b111: temp <= registers[rs1] & source;
+          endcase
+
+          state <= STATE_ALU_1;
+        end
+      STATE_ALU_1:
+        begin
+          registers[rd] <= temp;
           state <= STATE_FETCH_OP_0;
         end
       STATE_HALTED:
