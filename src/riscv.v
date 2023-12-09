@@ -62,7 +62,7 @@ assign clk = clock_div[7];
 //assign registers[0] = 0;
 reg [31:0] registers [31:0];
 reg [15:0] pc = 0;
-reg [15:0] pc_current = 0;
+reg signed [15:0] pc_current = 0;
 
 // Instruction
 reg [31:0] instruction;
@@ -72,7 +72,7 @@ wire [4:0] rs1;
 wire [4:0] rs2;
 wire [4:0] shamt;
 wire [2:0] funct3;
-wire [11:0] branch_offset;
+wire [12:0] branch_offset;
 wire [2:0] memory_size;
 assign op  = instruction[6:0];
 assign rd  = instruction[11:7];
@@ -84,7 +84,8 @@ assign branch_offset = {
   instruction[31],
   instruction[7],
   instruction[30:25],
-  instruction[11:8]
+  instruction[11:8],
+  1'b0
 };
 
 reg [31:0] source;
@@ -122,7 +123,9 @@ end
 // Debug: This block simply drives the 8x4 LEDs.
 always @(posedge raw_clk) begin
   case (count[9:7])
-    3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[5][7:0]; end
+    //3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[5][7:0]; end
+    3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[1][7:0]; end
+    //3'b010: begin column_value <= 4'b1011; leds_value <= ~registers[1][15:8]; end
     3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
     3'b100: begin column_value <= 4'b1101; leds_value <= ~pc[7:0]; end
     3'b110: begin column_value <= 4'b1110; leds_value <= ~state; end
@@ -447,10 +450,12 @@ always @(posedge clk) begin
           // ALU reg, reg.
           case (funct3)
             3'b000:
-              if (instruction[31:25] == 0)
-                temp <= registers[rs1] + source;
-              else
-                temp <= registers[rs1] - source;
+              case (instruction[31:25])
+                7'h00: temp <= registers[rs1] + source;
+                // Doesn't fit on iCE40 HX8K.
+                //7'h01: temp <= $signed(registers[rs1]) * $signed(source);
+                7'h20: temp <= registers[rs1] - source;
+              endcase
             3'b001: temp <= registers[rs1] << source;
             3'b010: temp <= $signed(registers[rs1]) < $signed(source) ? 1 : 0;
             3'b011: temp <= registers[rs1] < source;
