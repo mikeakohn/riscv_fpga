@@ -62,6 +62,7 @@ assign clk = clock_div[7];
 //assign registers[0] = 0;
 reg [31:0] registers [31:0];
 reg [15:0] pc = 0;
+reg [15:0] pc_current = 0;
 
 // Instruction
 reg [31:0] instruction;
@@ -121,8 +122,7 @@ end
 // Debug: This block simply drives the 8x4 LEDs.
 always @(posedge raw_clk) begin
   case (count[9:7])
-    3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[7][7:0]; end
-    //3'b000: begin column_value <= 4'b0111; leds_value <= ~mem_debug; end
+    3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[5][7:0]; end
     3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
     3'b100: begin column_value <= 4'b1101; leds_value <= ~pc[7:0]; end
     3'b110: begin column_value <= 4'b1110; leds_value <= ~state; end
@@ -144,20 +144,23 @@ parameter STATE_STORE_1 =      8;
 parameter STATE_ALU_0 =        9;
 parameter STATE_ALU_1 =        10;
 
+parameter STATE_BRANCH_1 =     11;
+
 parameter STATE_HALTED =       19;
 parameter STATE_ERROR =        20;
-parameter STATE_EEPROM_START = 21;
-parameter STATE_EEPROM_READ =  22;
-parameter STATE_EEPROM_WAIT =  23;
-parameter STATE_EEPROM_WRITE = 24;
-parameter STATE_EEPROM_DONE =  25;
+parameter STATE_DEBUG =        21;
+parameter STATE_EEPROM_START = 22;
+parameter STATE_EEPROM_READ =  23;
+parameter STATE_EEPROM_WAIT =  24;
+parameter STATE_EEPROM_WRITE = 25;
+parameter STATE_EEPROM_DONE =  26;
 
-function signed [31:0] sign(input signed [31:0] data);
-  sign = data;
-endfunction
+//function signed [31:0] sign32(input signed [31:0] data);
+//  sign32 = data;
+//endfunction
 
-function [31:0] sign12(input [11:0] data);
-  sign12 = { {20{ data[11] }}, data[11:0] };
+function signed [31:0] sign12(input signed [11:0] data);
+  sign12 = data;
 endfunction
 
 `define sign_imm12(data) { {20{ data[31] }}, data[31:20] }
@@ -214,6 +217,7 @@ always @(posedge clk) begin
           mem_bus_enable <= 1;
           mem_write_enable <= 0;
           mem_address <= pc;
+          pc_current = pc;
           pc <= pc + 4;
           state <= STATE_FETCH_OP_1;
         end
@@ -241,48 +245,29 @@ always @(posedge clk) begin
             7'b1101111:
               begin
                 // jal.
-                registers[rd] <= pc;
-                // FIXME: This should be signed.
-                pc <= pc + {
+                registers[rd] <= pc + 4;
+
+                pc <= pc_current + $signed( {
                   instruction[31],
                   instruction[19:12],
                   instruction[20],
                   instruction[30:21],
                   1'b0
-                };
+                } );
                 state <= STATE_FETCH_OP_0;
               end
             7'b1100111:
               begin
                 // jalr.
                 temp <= pc;
-                pc <= (pc + registers[rd] + sign12(instruction[31:20])) & 32'hfffffffc;
+                pc <= (registers[rs1] + sign12(instruction[31:20])) & 32'hfffffffc;
                 state <= STATE_ALU_1;
               end
             7'b1100011:
               begin
                 // branch.
-                case (funct3)
-                  3'b000:
-                    if (registers[rs1] == registers[rs2])
-                      pc <= pc + sign12(branch_offset);
-                  3'b001:
-                    if (registers[rs1] != registers[rs2])
-                      pc <= pc + sign12(branch_offset);
-                  3'b100:
-                    if (sign(registers[rs1]) < sign(registers[rs2]))
-                      pc <= pc + sign12(branch_offset);
-                  3'b101:
-                    if (sign(registers[rs1]) >= sign(registers[rs2]))
-                      pc <= pc + sign12(branch_offset);
-                  3'b110:
-                    if (registers[rs1] < registers[rs2])
-                      pc <= pc + sign12(branch_offset);
-                  3'b111:
-                    if (registers[rs1] >= registers[rs2])
-                      pc <= pc + sign12(branch_offset);
-                endcase
-                state <= STATE_FETCH_OP_0;
+                source <= registers[rs2];
+                state <= STATE_BRANCH_1;
               end
             7'b0000011:
               begin
@@ -305,9 +290,9 @@ always @(posedge clk) begin
               begin
                 // ALU immediate.
                 case (funct3)
-                  3'b000: temp <= registers[rs1] + sign12(instruction[31:20]);
-                  3'b010: temp <= registers[rs1] < sign12(instruction[31:20]);
-                  3'b011: temp <= registers[rs1] < instruction[31:20];
+                  3'b000: temp <= $signed(registers[rs1]) + $signed(instruction[31:20]);
+                  3'b010: temp <= $signed(registers[rs1]) < sign12(instruction[31:20]);
+                  3'b011: temp <= $signed(registers[rs1]) < instruction[31:20];
                   3'b100: temp <= registers[rs1] ^ sign12(instruction[31:20]);
                   3'b110: temp <= registers[rs1] | sign12(instruction[31:20]);
                   3'b111: temp <= registers[rs1] & sign12(instruction[31:20]);
@@ -317,7 +302,7 @@ always @(posedge clk) begin
                     if (instruction[31:25] == 0)
                       temp <= registers[rs1] >> shamt;
                     else
-                      temp <= sign(registers[rs1]) >>> shamt;
+                      temp <= $signed(registers[rs1]) >>> shamt;
                 endcase
 
                 state <= STATE_ALU_1;
@@ -467,14 +452,14 @@ always @(posedge clk) begin
               else
                 temp <= registers[rs1] - source;
             3'b001: temp <= registers[rs1] << source;
-            3'b010: temp <= sign(registers[rs1]) < sign(source);
+            3'b010: temp <= $signed(registers[rs1]) < $signed(source) ? 1 : 0;
             3'b011: temp <= registers[rs1] < source;
             3'b100: temp <= registers[rs1] ^ source;
             3'b101:
               if (instruction[31:25] == 0)
                 temp <= registers[rs1] >> source;
               else
-                temp <= sign(registers[rs1]) >>> source;
+                temp <= $signed(registers[rs1]) >>> source;
             3'b110: temp <= registers[rs1] | source;
             3'b111: temp <= registers[rs1] & source;
           endcase
@@ -486,6 +471,31 @@ always @(posedge clk) begin
           registers[rd] <= temp;
           state <= STATE_FETCH_OP_0;
         end
+      STATE_BRANCH_1:
+        begin
+          case (funct3)
+            3'b000:
+              if (registers[rs1] == source)
+                pc <= pc_current + sign12(branch_offset);
+            3'b001:
+              if (registers[rs1] != source)
+                pc <= pc_current + sign12(branch_offset);
+            3'b100:
+              if ($signed(registers[rs1]) < $signed(source))
+                pc <= pc_current + sign12(branch_offset);
+            3'b101:
+              if ($signed(registers[rs1]) >= $signed(source))
+                pc <= pc_current + sign12(branch_offset);
+            3'b110:
+              if (registers[rs1] < source)
+                pc <= pc_current + sign12(branch_offset);
+            3'b111:
+              if (registers[rs1] >= source)
+                pc <= pc_current + sign12(branch_offset);
+          endcase
+
+          state <= STATE_FETCH_OP_0;
+        end
       STATE_HALTED:
         begin
           state <= STATE_HALTED;
@@ -493,6 +503,10 @@ always @(posedge clk) begin
       STATE_ERROR:
         begin
           state <= STATE_ERROR;
+        end
+      STATE_DEBUG:
+        begin
+          state <= STATE_DEBUG;
         end
     endcase
 end
