@@ -20,19 +20,20 @@ program:
 	iceFUNprog $(PROGRAM).bin
 
 blink:
-	naken_asm -l -type bin -o blink.bin test/blink.asm
-	#python3 tools/lst2verilog.py blink.lst > src/rom.v
-	python3 tools/bin2txt.py blink.bin > rom.txt
+	naken_asm -l -type bin -o rom.bin test/blink.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
 
 rom_0:
-	naken_asm -l -type bin -o store_byte.bin test/store_byte.asm
-	#python3 tools/lst2verilog.py store_byte.lst > src/rom.v
-	python3 tools/bin2txt.py store_byte.bin > rom.txt
+	naken_asm -l -type bin -o rom.bin test/store_byte.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
 
 rom_1:
-	naken_asm -l -type bin -o load_byte.bin test/load_byte.asm
-	#python3 tools/lst2verilog.py load_byte.lst > src/rom.v
-	python3 tools/bin2txt.py load_byte.bin > rom.txt
+	naken_asm -l -type bin -o rom.bin test/load_byte.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
+
+rom_2:
+	naken_asm -l -type bin -o rom.bin test/alu.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
 
 clean:
 	@rm -f $(PROGRAM).bin $(PROGRAM).json $(PROGRAM).asc *.lst
