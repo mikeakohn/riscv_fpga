@@ -61,19 +61,19 @@ assign data_out = address[15] == 0 ?
   (address[14] == 0 ? peripherals_data_out : block_ram_data_out);
 
 rom rom_0(
-  .address   (address[9:0]),
+  .address   (address[11:0]),
   .data_out  (rom_data_out),
-  .clk       (raw_clk),
+  .clk       (raw_clk)
 );
 
 ram ram_0(
-  .address      (address[9:0]),
+  .address      (address[11:0]),
   .data_in      (data_in),
   .data_out     (ram_data_out),
   //.debug        (debug),
   .write_mask   (write_mask),
   .write_enable (ram_write_enable),
-  .clk          (raw_clk),
+  .clk          (raw_clk)
 );
 
 peripherals peripherals_0(
@@ -95,17 +95,17 @@ peripherals peripherals_0(
   .reset        (reset),
   .spi_clk      (spi_clk),
   .spi_mosi     (spi_mosi),
-  .spi_miso     (spi_miso),
+  .spi_miso     (spi_miso)
 );
 
 ram ram_1(
-  .address      (address[9:0]),
+  .address      (address[11:0]),
   .data_in      (data_in),
   .data_out     (block_ram_data_out),
   .debug        (debug),
   .write_mask   (write_mask),
   .write_enable (block_ram_write_enable),
-  .clk          (raw_clk),
+  .clk          (raw_clk)
 );
 
 endmodule
