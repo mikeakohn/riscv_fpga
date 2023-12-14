@@ -11,7 +11,7 @@
 
 module rom
 (
-  input  [9:0] address,
+  input  [11:0] address,
   output reg [31:0] data_out,
   input clk
 );
@@ -23,7 +23,7 @@ initial begin
 end
 
 always @(posedge clk) begin
-  data_out <= memory[address[9:2]];
+  data_out <= memory[address[11:2]];
 end
 
 endmodule
