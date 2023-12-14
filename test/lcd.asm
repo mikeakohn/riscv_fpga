@@ -18,7 +18,7 @@ SPI_16     equ 0x04
 
 ;; Bits in SPI_IO.
 LCD_RES    equ 0x01
-LCD_DC     equ 0x02 
+LCD_DC     equ 0x02
 LCD_CS     equ 0x04
 
 ;; Bits in PORT0
@@ -51,6 +51,25 @@ COMMAND_DISPLAY_ON      equ 0xaf
   nop
 .endm
 
+.macro square_fixed(result, var)
+.scope
+  mv a1, var
+  ;li t1, 0x8000
+  ;and t1, t1, a1
+  ;bnez t1, not_signed
+  ;nop
+  ;li t1, 0xffff
+  ;xor a1, a1, t1
+  ;addi a1, a1, 1
+  ;and a1, a1, t1
+not_signed:
+  mv a2, a1
+  jal multiply
+  nop
+  mv result, a3
+.ends
+.endm
+
 start:
   ;; Point gp to peripherals.
   li gp, 0x8000
@@ -63,6 +82,8 @@ main:
   nop
   jal lcd_clear
   nop
+  ;jal lcd_clear_2
+  ;nop
 
   li s2, 0
 main_while_1:
@@ -83,6 +104,7 @@ run:
   nop
   jal ra, mandelbrot
   nop
+  li s2, 1
   j main_while_1
   nop
 
@@ -137,8 +159,8 @@ lcd_init:
 lcd_clear:
   mv s1, ra
   li t1, 96 * 64
-lcd_clear_loop:
   li a0, 0xff0f
+lcd_clear_loop:
   jal lcd_send_data
   nop
   addi t1, t1, -1
@@ -150,8 +172,8 @@ lcd_clear_loop:
 lcd_clear_2:
   mv s1, ra
   li t1, 96 * 64
-lcd_clear_loop_2:
   li a0, 0xf00f
+lcd_clear_loop_2:
   jal lcd_send_data
   nop
   addi t1, t1, -1
@@ -160,12 +182,124 @@ lcd_clear_loop_2:
   jalr zero, s1, 0
   nop
 
+;; multiply(a1, a2) -> a3
 multiply:
+  ;mv a3, a1
+  ;srli a3, a3, 1
+  ;ret
+  ;nop
+  li a3, 0
+  li t0, 16
+multiply_repeat:
+  andi a4, a1, 1
+  beqz a4, multiply_ignore_bit
+  nop
+  add a3, a3, a2
+multiply_ignore_bit:
+  slli a2, a2, 1
+  srli a1, a1, 1
+  addi t0, t0, -1
+  bnez t0, multiply_repeat
+  nop
+  srai a3, a3, 10
+  li t0, 0xffff
+  and a3, a3, t0
   ret
   nop
 
 mandelbrot:
   mv s1, ra
+
+  ;; final int DEC_PLACE = 10;
+  ;; final int r0 = (-2 << DEC_PLACE);
+  ;; final int i0 = (-1 << DEC_PLACE);
+  ;; final int r1 = (1 << DEC_PLACE);
+  ;; final int i1 = (1 << DEC_PLACE);
+  ;; final int dx = (r1 - r0) / 96; (0x0020)
+  ;; final int dy = (i1 - i0) / 64; (0x0020)
+
+  ;; for (y = 0; y < 64; y++)
+  li s3, 64
+  ;; int i = -1 << 10;
+  li s5, 0xfc00
+mandelbrot_for_y:
+
+  ;; for (x = 0; x < 96; x++)
+  li s2, 96
+  ;; int r = -2 << 10;
+  li s4, 0xf800
+mandelbrot_for_x:
+  ;; zr = r;
+  ;; zi = i;
+  mv s6, s4
+  mv s7, s5
+
+  ;; for (int count = 0; count < 15; count++)
+  li a0, 15
+mandelbrot_for_count:
+  ;; zr2 = (zr * zr) >> DEC_PLACE;
+  square_fixed(a6, s6)
+
+  ;; zi2 = (zi * zi) >> DEC_PLACE;
+  square_fixed(a7, s7)
+
+  ;; if (zr2 + zi2 > (4 << DEC_PLACE)) { break; }
+  ;; cmp does: 4 - (zr2 + zi2).. if it's negative it's bigger than 4.
+  add a5, a6, a7
+  li t0, 4 << 10
+  slt a5, a5, t0
+  beqz a5, mandelbrot_stop
+  nop
+
+  ;; Create mask t0.
+  li t0, 0xffff
+
+  ;; tr = zr2 - zi2;
+  sub a5, a6, a7
+  and a5, a5, t0
+
+  ;; ti = ((zr * zi) >> DEC_PLACE) << 1;
+  mv a1, s6
+  mv a2, s7
+  jal multiply
+  nop
+  slli a3, a3, 1
+  ;mv t1, a3
+
+  ;; Create mask t0.
+  li t0, 0xffff
+
+  ;; zr = tr + curr_r;
+  add s6, a5, s4
+  and s6, s6, t0
+
+  ;; zi = ti + curr_i;
+  add s7, a3, s5
+  and s7, s7, t0
+
+  addi a0, a0, -1
+  bnez a0, mandelbrot_for_count
+  nop
+mandelbrot_stop:
+
+  slli a0, a0, 1
+  li t0, colors
+  add a0, t0, a0
+  lw a0, 0(a0)
+
+  jal lcd_send_data
+  nop
+
+  addi s4, s4, 0x0020
+  addi s2, s2, -1
+  bnez s2, mandelbrot_for_x
+  nop
+
+  addi s5, s5, 0x0020
+  addi s3, s3, -1
+  bnez s3, mandelbrot_for_y
+  nop
+
   jalr zero, s1, 0
   nop
 
@@ -195,7 +329,7 @@ lcd_send_data:
   sw t0, SPI_CTL(gp)
 lcd_send_data_wait:
   lw t0, SPI_CTL(gp)
-  andi t0, t0, SPI_BUSY 
+  andi t0, t0, SPI_BUSY
   bnez t0, lcd_send_data_wait
   nop
   li t0, LCD_CS | LCD_RES
@@ -204,11 +338,29 @@ lcd_send_data_wait:
   nop
 
 delay:
-  li t0, 4000
+  li t0, 65536
 delay_loop:
   addi t0, t0, -1
   bnez t0, delay_loop
   nop
   ret
   nop
+
+colors:
+  dc16 0x0000
+  dc16 0x000c
+  dc16 0x0013
+  dc16 0x0015
+  dc16 0x0195
+  dc16 0x0335
+  dc16 0x04d5
+  dc16 0x34c0
+  dc16 0x64c0
+  dc16 0x9cc0
+  dc16 0x6320
+  dc16 0xa980
+  dc16 0xaaa0
+  dc16 0xcaa0
+  dc16 0xe980
+  dc16 0xf800
 
