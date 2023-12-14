@@ -161,7 +161,7 @@ always @(posedge raw_clk) begin
         5'h0: data_out <= buttons;
         5'h1: data_out <= spi_tx_buffer;
         5'h2: data_out <= spi_rx_buffer;
-        5'h3: data_out <= { 5'b0000000, spi_width_16, 1'b0, spi_busy };
+        5'h3: data_out <= { 5'b00000, spi_width_16, 1'b0, spi_busy };
         5'h8: data_out <= ioport_a;
         5'ha: data_out <= ioport_b;
         5'hb: data_out <= mandelbrot_r;
