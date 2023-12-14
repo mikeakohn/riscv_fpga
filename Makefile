@@ -2,7 +2,6 @@
 PROGRAM=riscv
 SOURCE= \
   src/$(PROGRAM).v \
-  src/block_ram.v \
   src/eeprom.v \
   src/mandelbrot.v \
   src/memory_bus.v \
@@ -37,6 +36,10 @@ rom_1:
 
 rom_2:
 	naken_asm -l -type bin -o rom.bin test/alu.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
+
+rom_3:
+	naken_asm -l -type bin -o rom.bin test/spi.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
 clean:
