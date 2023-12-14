@@ -20,8 +20,6 @@ module spi
   input  miso
 );
 
-reg is_running = 0;
-
 reg [1:0] state = 0;
 // FIXME: Width only supports 8 bit on the receive side.
 reg [7:0] rx_buffer;
@@ -29,7 +27,7 @@ reg [15:0] tx_buffer;
 reg [4:0] count;
 
 assign data_rx = rx_buffer;
-assign busy = is_running;
+assign busy = state != STATE_IDLE;
 
 parameter STATE_IDLE    = 0;
 parameter STATE_CLOCK_0 = 1;
@@ -46,11 +44,9 @@ always @(posedge raw_clk) begin
           else
             tx_buffer[15:8] <= data_tx[7:0];
 
-          is_running <= 1;
           state <= STATE_CLOCK_0;
           count <= 0;
         end else begin
-          is_running <= 0;
           mosi <= 0;
         end
       end
@@ -61,6 +57,7 @@ always @(posedge raw_clk) begin
         if (count != 0) rx_buffer <= { rx_buffer[6:0], miso };
 
         tx_buffer <= tx_buffer << 1;
+        //tx_buffer <= { tx_buffer[14:0], 1'b0 };
         mosi <= tx_buffer[15];
 
         count <= count + 1;
