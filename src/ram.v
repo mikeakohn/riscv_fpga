@@ -15,7 +15,7 @@
 
 module ram
 (
-  input [9:0] address,
+  input [11:0] address,
   input [31:0] data_in,
   output reg [31:0] data_out,
   output reg [7:0] debug,
@@ -24,13 +24,13 @@ module ram
   input clk
 );
 
-reg [7:0] storage_0 [255:0];
-reg [7:0] storage_1 [255:0];
-reg [7:0] storage_2 [255:0];
-reg [7:0] storage_3 [255:0];
+reg [7:0] storage_0 [511:0];
+reg [7:0] storage_1 [511:0];
+reg [7:0] storage_2 [511:0];
+reg [7:0] storage_3 [511:0];
 
-wire [7:0] aligned_address;
-assign aligned_address = address[9:2];
+wire [9:0] aligned_address;
+assign aligned_address = address[11:2];
 
 //always @(posedge double_clk) begin
 always @(posedge clk) begin
