@@ -54,19 +54,53 @@ COMMAND_DISPLAY_ON      equ 0xaf
 .macro square_fixed(result, var)
 .scope
   mv a1, var
-  ;li t1, 0x8000
-  ;and t1, t1, a1
-  ;bnez t1, not_signed
-  ;nop
-  ;li t1, 0xffff
-  ;xor a1, a1, t1
-  ;addi a1, a1, 1
-  ;and a1, a1, t1
+  li t1, 0x8000
+  and t1, t1, a1
+  beqz t1, not_signed
+  nop
+  li t1, 0xffff
+  xor a1, a1, t1
+  addi a1, a1, 1
+  and a1, a1, t1
 not_signed:
   mv a2, a1
   jal multiply
   nop
   mv result, a3
+.ends
+.endm
+
+.macro multiply_signed(var_0, var_1)
+.scope
+  mv a1, var_0
+  mv a2, var_1
+  li t2, 0x0000
+  li t1, 0x8000
+  and t1, t1, a1
+  beqz t1, not_signed_0
+  nop
+  xor t2, t2, t1
+  xor a1, a1, t3
+  addi a1, a1, 1
+  and a1, a1, t3
+not_signed_0:
+  li t1, 0x8000
+  and t1, t1, a2
+  beqz t1, not_signed_1
+  nop
+  xor t2, t2, t1
+  xor a2, a2, t3
+  addi a2, a2, 1
+  and a2, a2, t3
+not_signed_1:
+  jal multiply
+  nop
+  beqz t2, dont_add_sign
+  nop
+  xor a3, a3, t3
+  addi a3, a3, 1
+  and a3, a3, t3
+dont_add_sign:
 .ends
 .endm
 
@@ -218,16 +252,21 @@ mandelbrot:
   ;; final int dx = (r1 - r0) / 96; (0x0020)
   ;; final int dy = (i1 - i0) / 64; (0x0020)
 
+  ;; Mask for 16 bit.
+  li t3, 0xffff
+
   ;; for (y = 0; y < 64; y++)
   li s3, 64
   ;; int i = -1 << 10;
   li s5, 0xfc00
+  ;li s5, 0xfc00 + 0x400
 mandelbrot_for_y:
 
   ;; for (x = 0; x < 96; x++)
   li s2, 96
   ;; int r = -2 << 10;
   li s4, 0xf800
+  ;li s4, 0xf800 + 0x600
 mandelbrot_for_x:
   ;; zr = r;
   ;; zi = i;
@@ -251,36 +290,48 @@ mandelbrot_for_count:
   beqz a5, mandelbrot_stop
   nop
 
+;; Sign extend a6 and a7.
+;slli a6, a6, 16
+;srai a6, a6, 16
+;slli a7, a7, 16
+;srai a7, a7, 16
+
   ;; Create mask t0.
-  li t0, 0xffff
+  ;li t0, 0xffff
 
   ;; tr = zr2 - zi2;
   sub a5, a6, a7
-  and a5, a5, t0
+  and a5, a5, t3
 
   ;; ti = ((zr * zi) >> DEC_PLACE) << 1;
-  mv a1, s6
-  mv a2, s7
-  jal multiply
-  nop
+  ;mv a1, s6
+  ;mv a2, s7
+  ;jal multiply
+  ;nop
+
+  multiply_signed(s6, s7)
   slli a3, a3, 1
   ;mv t1, a3
 
   ;; Create mask t0.
-  li t0, 0xffff
+  ;li t0, 0xffff
+  and a3, a3, t3  ; probably not needed
 
   ;; zr = tr + curr_r;
   add s6, a5, s4
-  and s6, s6, t0
+  and s6, s6, t3
 
   ;; zi = ti + curr_i;
   add s7, a3, s5
-  and s7, s7, t0
+  and s7, s7, t3
 
   addi a0, a0, -1
   bnez a0, mandelbrot_for_count
   nop
 mandelbrot_stop:
+
+;mv t1, a0
+;ebreak
 
   slli a0, a0, 1
   li t0, colors
@@ -290,12 +341,15 @@ mandelbrot_stop:
   jal lcd_send_data
   nop
 
+  li t0, 0xffff
   addi s4, s4, 0x0020
+  and s4, s4, t0
   addi s2, s2, -1
   bnez s2, mandelbrot_for_x
   nop
 
   addi s5, s5, 0x0020
+  and s4, s4, t0
   addi s3, s3, -1
   bnez s3, mandelbrot_for_y
   nop
