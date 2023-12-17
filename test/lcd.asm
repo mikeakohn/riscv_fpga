@@ -259,14 +259,12 @@ mandelbrot:
   li s3, 64
   ;; int i = -1 << 10;
   li s5, 0xfc00
-  ;li s5, 0xfc00 + 0x400
 mandelbrot_for_y:
 
   ;; for (x = 0; x < 96; x++)
   li s2, 96
   ;; int r = -2 << 10;
   li s4, 0xf800
-  ;li s4, 0xf800 + 0x600
 mandelbrot_for_x:
   ;; zr = r;
   ;; zi = i;
@@ -290,32 +288,14 @@ mandelbrot_for_count:
   beqz a5, mandelbrot_stop
   nop
 
-;; Sign extend a6 and a7.
-;slli a6, a6, 16
-;srai a6, a6, 16
-;slli a7, a7, 16
-;srai a7, a7, 16
-
-  ;; Create mask t0.
-  ;li t0, 0xffff
-
   ;; tr = zr2 - zi2;
   sub a5, a6, a7
   and a5, a5, t3
 
   ;; ti = ((zr * zi) >> DEC_PLACE) << 1;
-  ;mv a1, s6
-  ;mv a2, s7
-  ;jal multiply
-  ;nop
-
   multiply_signed(s6, s7)
   slli a3, a3, 1
   ;mv t1, a3
-
-  ;; Create mask t0.
-  ;li t0, 0xffff
-  and a3, a3, t3  ; probably not needed
 
   ;; zr = tr + curr_r;
   add s6, a5, s4
@@ -330,9 +310,6 @@ mandelbrot_for_count:
   nop
 mandelbrot_stop:
 
-;mv t1, a0
-;ebreak
-
   slli a0, a0, 1
   li t0, colors
   add a0, t0, a0
@@ -341,15 +318,14 @@ mandelbrot_stop:
   jal lcd_send_data
   nop
 
-  li t0, 0xffff
   addi s4, s4, 0x0020
-  and s4, s4, t0
+  and s4, s4, t3
   addi s2, s2, -1
   bnez s2, mandelbrot_for_x
   nop
 
   addi s5, s5, 0x0020
-  and s4, s4, t0
+  and s5, s5, t3
   addi s3, s3, -1
   bnez s3, mandelbrot_for_y
   nop

@@ -95,7 +95,6 @@ reg [31:0] temp;
 assign memory_size = instruction[14:12];
 reg [31:0] ea;
 reg [31:0] ea_aligned;
-//reg [31:0] data;
 
 // Lower 6 its of the instruction.
 wire [5:0] opcode;
@@ -124,15 +123,7 @@ end
 always @(posedge raw_clk) begin
   case (count[9:7])
     3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[6][7:0]; end
-    3'b010: begin column_value <= 4'b1011; leds_value <= ~registers[6][15:8]; end
-
-    //3'b000: begin column_value <= 4'b0111; leds_value <= ~pc[7:0]; end
-    //3'b010: begin column_value <= 4'b1011; leds_value <= ~pc[15:8]; end
-    //3'b000: begin column_value <= 4'b0111; leds_value <= ~jalr_temp[7:0]; end
-    //3'b010: begin column_value <= 4'b1011; leds_value <= ~jalr_temp[15:8]; end
-
-    //3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[1][7:0]; end
-    //3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
+    3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
     3'b100: begin column_value <= 4'b1101; leds_value <= ~pc[7:0]; end
     3'b110: begin column_value <= 4'b1110; leds_value <= ~state; end
     default: begin column_value <= 4'b1111; leds_value <= 8'hff; end
@@ -164,23 +155,11 @@ parameter STATE_EEPROM_WAIT =  24;
 parameter STATE_EEPROM_WRITE = 25;
 parameter STATE_EEPROM_DONE =  26;
 
-//function signed [31:0] sign32(input signed [31:0] data);
-//  sign32 = data;
-//endfunction
-
 function signed [31:0] sign12(input signed [11:0] data);
   sign12 = data;
 endfunction
 
-`define sign_imm12(data) { {20{ data[31] }}, data[31:20] }
-
-/*
-function [31:0] sll(input [31:0] source, input shamt [4:0])
-  case (shamt)
-
-  endcase
-endfunction
-*/
+//`define sign_imm12(data) { {20{ data[31] }}, data[31:20] }
 
 // This block is the main CPU instruction execute state machine.
 always @(posedge clk) begin
