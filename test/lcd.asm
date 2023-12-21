@@ -1,6 +1,6 @@
 .riscv
 
-.org 0x4000
+.org 0xc000
 
 ;; Registers.
 BUTTON     equ 0x00
@@ -44,6 +44,8 @@ COMMAND_CONTRASTA       equ 0x81
 COMMAND_CONTRASTB       equ 0x82
 COMMAND_CONTRASTC       equ 0x83
 COMMAND_DISPLAY_ON      equ 0xaf
+
+.define mandel mulw
 
 .macro send_command(value)
   li a0, value
@@ -110,6 +112,7 @@ start:
   ;; Clear LED.
   li t0, 1
   sw t0, PORT0(gp)
+  li s11, 0
 
 main:
   jal lcd_init
@@ -136,7 +139,17 @@ main_while_1:
 run:
   jal ra, lcd_clear_2
   nop
+  xori s11, s11, 1
+  beqz s11, run_hw
+  nop
   jal ra, mandelbrot
+  nop
+  li s2, 1
+  j main_while_1
+  nop
+
+run_hw:
+  jal ra, mandelbrot_hw
   nop
   li s2, 1
   j main_while_1
@@ -333,6 +346,56 @@ mandelbrot_stop:
   jalr zero, s1, 0
   nop
 
+mandelbrot_hw:
+  mv s1, ra
+
+  ;; final int DEC_PLACE = 10;
+  ;; final int r0 = (-2 << DEC_PLACE);
+  ;; final int i0 = (-1 << DEC_PLACE);
+  ;; final int r1 = (1 << DEC_PLACE);
+  ;; final int i1 = (1 << DEC_PLACE);
+  ;; final int dx = (r1 - r0) / 96; (0x0020)
+  ;; final int dy = (i1 - i0) / 64; (0x0020)
+
+  ;; Mask for 16 bit.
+  li t3, 0xffff
+
+  ;; for (y = 0; y < 64; y++)
+  li s3, 64
+  ;; int i = -1 << 10;
+  li s5, 0xfc00
+mandelbrot_hw_for_y:
+
+  ;; for (x = 0; x < 96; x++)
+  li s2, 96
+  ;; int r = -2 << 10;
+  li s4, 0xf800
+mandelbrot_hw_for_x:
+
+  mandel a0, s4, s5
+
+  slli a0, a0, 1
+  li t0, colors
+  add a0, t0, a0
+  lw a0, 0(a0)
+
+  jal lcd_send_data
+  nop
+
+  addi s4, s4, 0x0020
+  and s4, s4, t3
+  addi s2, s2, -1
+  bnez s2, mandelbrot_hw_for_x
+  nop
+
+  addi s5, s5, 0x0020
+  and s5, s5, t3
+  addi s3, s3, -1
+  bnez s3, mandelbrot_hw_for_y
+  nop
+
+  jalr zero, s1, 0
+  nop
 ;; lcd_send_cmd(a0)
 lcd_send_cmd:
   li t0, LCD_RES
