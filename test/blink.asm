@@ -19,7 +19,7 @@ main_loop:
   nop
 
 delay:
-  li t0, 4000
+  li t0, 0x30000
 delay_loop:
   addi t0, t0, -1
   bne t0, zero, delay_loop
