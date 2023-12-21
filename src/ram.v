@@ -24,10 +24,10 @@ module ram
   input clk
 );
 
-reg [7:0] storage_0 [511:0];
-reg [7:0] storage_1 [511:0];
-reg [7:0] storage_2 [511:0];
-reg [7:0] storage_3 [511:0];
+reg [7:0] storage_0 [1023:0];
+reg [7:0] storage_1 [1023:0];
+reg [7:0] storage_2 [1023:0];
+reg [7:0] storage_3 [1023:0];
 
 wire [9:0] aligned_address;
 assign aligned_address = address[11:2];
