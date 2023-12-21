@@ -58,11 +58,13 @@ wire spi_busy;
 reg spi_start;
 reg spi_width_16;
 
+/*
 reg [15:0] mandelbrot_r;
 reg [15:0] mandelbrot_i;
 wire mandelbrot_busy;
 reg mandelbrot_start;
 wire [3:0] mandelbrot_result;
+*/
 
 always @(button_0) begin
   buttons = { 7'b0, ~button_0 };
@@ -148,13 +150,13 @@ always @(posedge raw_clk) begin
           endcase
         end
       5'ha: ioport_b <= data_in;
-      5'hb: mandelbrot_r <= data_in;
-      5'hc: mandelbrot_i <= data_in;
-      5'hd: if (data_in[1] == 1) mandelbrot_start <= 1;
+      //5'hb: mandelbrot_r <= data_in;
+      //5'hc: mandelbrot_i <= data_in;
+      //5'hd: if (data_in[1] == 1) mandelbrot_start <= 1;
     endcase
   end else begin
     if (spi_start && spi_busy) spi_start <= 0;
-    if (mandelbrot_start && mandelbrot_busy) mandelbrot_start <= 0;
+    //if (mandelbrot_start && mandelbrot_busy) mandelbrot_start <= 0;
 
     if (enable) begin
       case (address[7:2])
@@ -164,10 +166,10 @@ always @(posedge raw_clk) begin
         5'h3: data_out <= { 5'b00000, spi_width_16, 1'b0, spi_busy };
         5'h8: data_out <= ioport_a;
         5'ha: data_out <= ioport_b;
-        5'hb: data_out <= mandelbrot_r;
-        5'hc: data_out <= mandelbrot_i;
-        5'hd: data_out <= { 7'b0000000, mandelbrot_busy };
-        5'he: data_out <= { 12'b00000000000, mandelbrot_result };
+        //5'hb: data_out <= mandelbrot_r;
+        //5'hc: data_out <= mandelbrot_i;
+        //5'hd: data_out <= { 7'b0000000, mandelbrot_busy };
+        //5'he: data_out <= { 12'b00000000000, mandelbrot_result };
         default: data_out <= 0;
       endcase
     end
@@ -185,16 +187,6 @@ spi spi_0
   .sclk     (spi_clk),
   .mosi     (spi_mosi),
   .miso     (spi_miso)
-);
-
-mandelbrot mandelbrot_0
-(
-  .raw_clk  (raw_clk),
-  .start    (mandelbrot_start),
-  .curr_r   (mandelbrot_r),
-  .curr_i   (mandelbrot_i),
-  .result   (mandelbrot_result),
-  .busy     (mandelbrot_busy)
 );
 
 endmodule

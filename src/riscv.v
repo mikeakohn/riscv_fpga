@@ -72,6 +72,7 @@ wire [4:0] rs1;
 wire [4:0] rs2;
 wire [4:0] shamt;
 wire [2:0] funct3;
+wire [6:0] funct7;
 wire [12:0] branch_offset;
 wire [2:0] memory_size;
 assign op  = instruction[6:0];
@@ -80,6 +81,7 @@ assign rs1 = instruction[19:15];
 assign rs2 = instruction[24:20];
 assign shamt = instruction[24:20];
 assign funct3 = instruction[14:12];
+assign funct7 = instruction[31:25];
 assign branch_offset = {
   instruction[31],
   instruction[7],
@@ -101,11 +103,20 @@ wire [5:0] opcode;
 assign opcode = instruction[5:0];
 
 // Eeprom.
-reg  [8:0] eeprom_count;
+reg [10:0] eeprom_count;
 wire [7:0] eeprom_data_out;
+reg  [7:0] eeprom_holding [3:0];
 reg [10:0] eeprom_address;
+reg [15:0] eeprom_mem_address;
 reg eeprom_strobe = 0;
 wire eeprom_ready;
+
+// Mandelbrot.
+reg [15:0] mandelbrot_r;
+reg [15:0] mandelbrot_i;
+wire mandelbrot_busy;
+reg mandelbrot_start = 0;
+wire [3:0] mandelbrot_result;
 
 // Debug.
 //reg [7:0] debug_0 = 0;
@@ -145,6 +156,8 @@ parameter STATE_ALU_0 =        9;
 parameter STATE_ALU_1 =        10;
 
 parameter STATE_BRANCH_1 =     11;
+parameter STATE_MANDELBROT_1 = 12;
+parameter STATE_MANDELBROT_2 = 13;
 
 parameter STATE_HALTED =       19;
 parameter STATE_ERROR =        20;
@@ -177,6 +190,7 @@ always @(posedge clk) begin
           instruction <= 0;
           delay_loop <= 12000;
           //eeprom_strobe <= 0;
+          mandelbrot_start <= 0;
           state <= STATE_DELAY_LOOP;
         end
       STATE_DELAY_LOOP:
@@ -187,14 +201,11 @@ always @(posedge clk) begin
             // If button is not pushed, start rom.v code otherwise use EEPROM.
             if (button_program_select) begin
               pc <= 16'h4000;
-              registers[1] <= 8'hc0;
+              state <= STATE_FETCH_OP_0;
             end else begin
               pc <= 16'hc000;
-              registers[1] <= 8'h99;
+              state <= STATE_EEPROM_START;
             end
-
-            //state <= STATE_EEPROM_START;
-            state <= STATE_FETCH_OP_0;
           end else begin
             delay_loop <= delay_loop - 1;
           end
@@ -229,6 +240,14 @@ always @(posedge clk) begin
                 // auipc.
                 registers[rd] <= pc_current + { instruction[31:12], 12'b0 };
                 state <= STATE_FETCH_OP_0;
+              end
+            7'b0111011:
+              begin
+                // mandel rd, rs1, rs2 (aka feq.d)
+                if (funct7 == 7'b0000001 && funct3 == 3'b000) begin
+                  mandelbrot_r <= registers[rs1];
+                  state <= STATE_MANDELBROT_1;
+                end
               end
             7'b1101111:
               begin
@@ -270,8 +289,8 @@ always @(posedge clk) begin
             7'b0100011:
               begin
                 // Store.
-                ea <= registers[rs1] + sign12( { instruction[31:25], instruction[11:7] } );
-                mem_address <= registers[rs1] + sign12( { instruction[31:25], instruction[11:7] } );
+                ea <= registers[rs1] + sign12( { funct7, instruction[11:7] } );
+                mem_address <= registers[rs1] + sign12( { funct7, instruction[11:7] } );
                 mem_bus_enable <= 0;
                 state <= STATE_STORE_0;
               end
@@ -288,7 +307,7 @@ always @(posedge clk) begin
                   // Shift.
                   3'b001: temp <= registers[rs1] << shamt;
                   3'b101:
-                    if (instruction[31:25] == 0)
+                    if (funct7 == 0)
                       temp <= registers[rs1] >> shamt;
                     else
                       temp <= $signed(registers[rs1]) >>> shamt;
@@ -436,7 +455,7 @@ always @(posedge clk) begin
           // ALU reg, reg.
           case (funct3)
             3'b000:
-              case (instruction[31:25])
+              case (funct7)
                 7'h00: temp <= registers[rs1] + source;
                 // Doesn't fit on iCE40 HX8K.
                 //7'h01: temp <= $signed(registers[rs1]) * $signed(source);
@@ -447,7 +466,7 @@ always @(posedge clk) begin
             3'b011: temp <= registers[rs1] < source;
             3'b100: temp <= registers[rs1] ^ source;
             3'b101:
-              if (instruction[31:25] == 0)
+              if (funct7 == 0)
                 temp <= registers[rs1] >> source;
               else
                 temp <= $signed(registers[rs1]) >>> source;
@@ -487,6 +506,20 @@ always @(posedge clk) begin
 
           state <= STATE_FETCH_OP_0;
         end
+      STATE_MANDELBROT_1:
+        begin
+          mandelbrot_start <= 1;
+          mandelbrot_i <= registers[rs2];
+          state <= STATE_MANDELBROT_2;
+        end
+      STATE_MANDELBROT_2:
+        begin
+          if (!mandelbrot_busy) begin
+            state <= STATE_FETCH_OP_0;
+            registers[rd] <= mandelbrot_result;
+          end
+          mandelbrot_start <= 0;
+        end
       STATE_HALTED:
         begin
           state <= STATE_HALTED;
@@ -498,6 +531,73 @@ always @(posedge clk) begin
       STATE_DEBUG:
         begin
           state <= STATE_DEBUG;
+        end
+      STATE_EEPROM_START:
+        begin
+          // Initialize values for reading from SPI-like EEPROM.
+          if (eeprom_ready) begin
+            //eeprom_mem_address <= pc;
+            eeprom_mem_address <= 16'hc000;
+            eeprom_count <= 0;
+            state <= STATE_EEPROM_READ;
+          end
+        end
+      STATE_EEPROM_READ:
+        begin
+          // Set the next EEPROM address to read from and strobe.
+          mem_bus_enable <= 0;
+          eeprom_address <= eeprom_count;
+          eeprom_strobe <= 1;
+          state <= STATE_EEPROM_WAIT;
+        end
+      STATE_EEPROM_WAIT:
+        begin
+          // Wait until 8 bits are clocked in.
+          eeprom_strobe <= 0;
+
+          if (eeprom_ready) begin
+
+            if (eeprom_count[1:0] == 3) begin
+              mem_address <= eeprom_mem_address;
+              mem_write_mask <= 4'b0000;
+              // After reading 4 bytes, store the 32 bit value to RAM.
+              mem_write <= {
+                eeprom_data_out,
+                eeprom_holding[2],
+                eeprom_holding[1],
+                eeprom_holding[0]
+              };
+
+              state <= STATE_EEPROM_WRITE;
+            end else begin
+              // Read 3 bytes into a holding register.
+              eeprom_holding[eeprom_count[1:0]] <= eeprom_data_out;
+              state <= STATE_EEPROM_READ;
+            end
+
+            eeprom_count <= eeprom_count + 1;
+          end
+        end
+      STATE_EEPROM_WRITE:
+        begin
+          // Write value read from EEPROM into memory.
+          mem_bus_enable <= 1;
+          mem_write_enable <= 1;
+          eeprom_mem_address <= eeprom_mem_address + 4;
+
+          state <= STATE_EEPROM_DONE;
+        end
+      STATE_EEPROM_DONE:
+        begin
+          // Finish writing and read next byte if needed.
+          mem_bus_enable <= 0;
+          mem_write_enable <= 0;
+
+          if (eeprom_count == 0) begin
+            // Read in 2048 bytes.
+            state <= STATE_FETCH_OP_0;
+          end else
+            state <= STATE_EEPROM_READ;
         end
     endcase
 end
@@ -537,6 +637,16 @@ eeprom eeprom_0
   .eeprom_do  (eeprom_do),
   .ready      (eeprom_ready),
   .data_out   (eeprom_data_out)
+);
+
+mandelbrot mandelbrot_0
+(
+  .raw_clk  (raw_clk),
+  .start    (mandelbrot_start),
+  .curr_r   (mandelbrot_r),
+  .curr_i   (mandelbrot_i),
+  .result   (mandelbrot_result),
+  .busy     (mandelbrot_busy)
 );
 
 endmodule
