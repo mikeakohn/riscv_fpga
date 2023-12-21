@@ -45,7 +45,7 @@ always @(posedge raw_clk) begin
           zr <= curr_r;
           zi <= curr_i;
           state <= STATE_START;
-          count <= 0;
+          count <= 15;
         end else begin
           is_running <= 0;
         end
@@ -68,13 +68,13 @@ always @(posedge raw_clk) begin
       end
     STATE_LAST:
       begin
-        if (count == 15) begin
+        if (count == 0) begin
           state <= STATE_IDLE;
         end else begin
           zr <= tr + curr_r;
           zi <= ti[15:0] + curr_i;
           state <= STATE_START;
-          count <= count + 1;
+          count <= count - 1;
         end
       end
   endcase
