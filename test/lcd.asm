@@ -50,7 +50,6 @@ COMMAND_DISPLAY_ON      equ 0xaf
 .macro send_command(value)
   li a0, value
   jal lcd_send_cmd
-  nop
 .endm
 
 .macro square_fixed(result, var)
@@ -59,7 +58,6 @@ COMMAND_DISPLAY_ON      equ 0xaf
   li t1, 0x8000
   and t1, t1, a1
   beqz t1, not_signed
-  nop
   li t1, 0xffff
   xor a1, a1, t1
   addi a1, a1, 1
@@ -67,7 +65,6 @@ COMMAND_DISPLAY_ON      equ 0xaf
 not_signed:
   mv a2, a1
   jal multiply
-  nop
   mv result, a3
 .ends
 .endm
@@ -80,7 +77,6 @@ not_signed:
   li t1, 0x8000
   and t1, t1, a1
   beqz t1, not_signed_0
-  nop
   xor t2, t2, t1
   xor a1, a1, t3
   addi a1, a1, 1
@@ -89,16 +85,13 @@ not_signed_0:
   li t1, 0x8000
   and t1, t1, a2
   beqz t1, not_signed_1
-  nop
   xor t2, t2, t1
   xor a2, a2, t3
   addi a2, a2, 1
   and a2, a2, t3
 not_signed_1:
   jal multiply
-  nop
   beqz t2, dont_add_sign
-  nop
   xor a3, a3, t3
   addi a3, a3, 1
   and a3, a3, t3
@@ -116,51 +109,38 @@ start:
 
 main:
   jal lcd_init
-  nop
   jal lcd_clear
-  nop
   ;jal lcd_clear_2
-  ;nop
 
   li s2, 0
 main_while_1:
   lw t0, BUTTON(gp)
   andi t0, t0, 1
   bnez t0, run
-  nop
   xori s2, s2, 1
   sb s2, PORT0(gp)
   jal delay
-  nop
 
   j main_while_1
-  nop
 
 run:
   jal ra, lcd_clear_2
-  nop
   xori s11, s11, 1
   beqz s11, run_hw
-  nop
   jal ra, mandelbrot
-  nop
   li s2, 1
   j main_while_1
-  nop
 
 run_hw:
   jal ra, mandelbrot_hw
-  nop
   li s2, 1
   j main_while_1
-  nop
 
 lcd_init:
   mv s1, ra
   li t0, LCD_CS
   sw t0, SPI_IO(gp)
   jal delay
-  nop
   li t0, LCD_CS | LCD_RES
   sw t0, SPI_IO(gp)
 
@@ -201,7 +181,6 @@ lcd_init:
   send_command(0x7d)
   send_command(COMMAND_DISPLAY_ON)
   jalr zero, s1, 0
-  nop
 
 lcd_clear:
   mv s1, ra
@@ -209,12 +188,9 @@ lcd_clear:
   li a0, 0xff0f
 lcd_clear_loop:
   jal lcd_send_data
-  nop
   addi t1, t1, -1
   bnez t1, lcd_clear_loop
-  nop
   jalr zero, s1, 0
-  nop
 
 lcd_clear_2:
   mv s1, ra
@@ -222,37 +198,30 @@ lcd_clear_2:
   li a0, 0xf00f
 lcd_clear_loop_2:
   jal lcd_send_data
-  nop
   addi t1, t1, -1
   bnez t1, lcd_clear_loop_2
-  nop
   jalr zero, s1, 0
-  nop
 
 ;; multiply(a1, a2) -> a3
 multiply:
   ;mv a3, a1
   ;srli a3, a3, 1
   ;ret
-  ;nop
   li a3, 0
   li t0, 16
 multiply_repeat:
   andi a4, a1, 1
   beqz a4, multiply_ignore_bit
-  nop
   add a3, a3, a2
 multiply_ignore_bit:
   slli a2, a2, 1
   srli a1, a1, 1
   addi t0, t0, -1
   bnez t0, multiply_repeat
-  nop
   srai a3, a3, 10
   li t0, 0xffff
   and a3, a3, t0
   ret
-  nop
 
 mandelbrot:
   mv s1, ra
@@ -299,7 +268,6 @@ mandelbrot_for_count:
   li t0, 4 << 10
   slt a5, a5, t0
   beqz a5, mandelbrot_stop
-  nop
 
   ;; tr = zr2 - zi2;
   sub a5, a6, a7
@@ -320,7 +288,6 @@ mandelbrot_for_count:
 
   addi a0, a0, -1
   bnez a0, mandelbrot_for_count
-  nop
 mandelbrot_stop:
 
   slli a0, a0, 1
@@ -329,22 +296,18 @@ mandelbrot_stop:
   lw a0, 0(a0)
 
   jal lcd_send_data
-  nop
 
   addi s4, s4, 0x0020
   and s4, s4, t3
   addi s2, s2, -1
   bnez s2, mandelbrot_for_x
-  nop
 
   addi s5, s5, 0x0020
   and s5, s5, t3
   addi s3, s3, -1
   bnez s3, mandelbrot_for_y
-  nop
 
   jalr zero, s1, 0
-  nop
 
 mandelbrot_hw:
   mv s1, ra
@@ -380,22 +343,18 @@ mandelbrot_hw_for_x:
   lw a0, 0(a0)
 
   jal lcd_send_data
-  nop
 
   addi s4, s4, 0x0020
   and s4, s4, t3
   addi s2, s2, -1
   bnez s2, mandelbrot_hw_for_x
-  nop
 
   addi s5, s5, 0x0020
   and s5, s5, t3
   addi s3, s3, -1
   bnez s3, mandelbrot_hw_for_y
-  nop
 
   jalr zero, s1, 0
-  nop
 ;; lcd_send_cmd(a0)
 lcd_send_cmd:
   li t0, LCD_RES
@@ -407,11 +366,9 @@ lcd_send_cmd_wait:
   lw t0, SPI_CTL(gp)
   andi t0, t0, SPI_BUSY
   bnez t0, lcd_send_cmd_wait
-  nop
   li t0, LCD_CS | LCD_RES
   sw t0, SPI_IO(gp)
   ret
-  nop
 
 ;; lcd_send_data(a0)
 lcd_send_data:
@@ -424,21 +381,19 @@ lcd_send_data_wait:
   lw t0, SPI_CTL(gp)
   andi t0, t0, SPI_BUSY
   bnez t0, lcd_send_data_wait
-  nop
   li t0, LCD_CS | LCD_RES
   sw t0, SPI_IO(gp)
   ret
-  nop
 
 delay:
   li t0, 65536
 delay_loop:
   addi t0, t0, -1
   bnez t0, delay_loop
-  nop
   ret
-  nop
 
+;; colors is referenced by address instead of an offset, which makes this
+;; program not relocatable.
 colors:
   dc16 0x0000
   dc16 0x000c

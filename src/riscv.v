@@ -252,7 +252,7 @@ always @(posedge clk) begin
             7'b1101111:
               begin
                 // jal.
-                registers[rd] <= pc + 4;
+                registers[rd] <= pc;
 
                 pc <= $signed(pc_current) + $signed( {
                   instruction[31],
