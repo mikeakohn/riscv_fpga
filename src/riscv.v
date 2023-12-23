@@ -267,9 +267,11 @@ always @(posedge clk) begin
             7'b1100111:
               begin
                 // jalr.
-                temp <= pc;
                 pc <= ($signed(registers[rs1]) + $signed(instruction[31:20])) & 16'hfffc;
-                state <= STATE_ALU_1;
+                //temp <= pc;
+                //state <= STATE_ALU_1;
+                registers[rd] <= pc;
+                state <= STATE_FETCH_OP_0;
               end
             7'b1100011:
               begin
