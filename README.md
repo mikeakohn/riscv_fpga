@@ -80,7 +80,7 @@ The peripherals area contain the following:
 * 0x8004: SPI TX buffer
 * 0x8008: SPI RX buffer
 * 0x800c: SPI control: bit 2: 8/16, bit 1: start strobe, bit 0: busy
-* 0x8018: ioport_A output (in my test case only 1 pin is connected)
+* 0x8020: ioport_A output (in my test case only 1 pin is connected)
 * 0x8024: MIDI note value (60-96) to play a tone on the speaker or 0 to stop
 * 0x8028: ioport_B output (3 pins)
 

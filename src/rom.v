@@ -16,7 +16,7 @@ module rom
   input clk
 );
 
-reg [31:0] memory [511:0];
+reg [31:0] memory [1023:0];
 
 initial begin
   $readmemh("rom.txt", memory);
