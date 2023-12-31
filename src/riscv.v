@@ -134,7 +134,8 @@ end
 always @(posedge raw_clk) begin
   case (count[9:7])
     3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[6][7:0]; end
-    3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
+    3'b010: begin column_value <= 4'b1011; leds_value <= ~registers[6][15:8]; end
+    //3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
     3'b100: begin column_value <= 4'b1101; leds_value <= ~pc[7:0]; end
     3'b110: begin column_value <= 4'b1110; leds_value <= ~state; end
     default: begin column_value <= 4'b1111; leds_value <= 8'hff; end
@@ -350,37 +351,37 @@ always @(posedge clk) begin
                     0:
                       begin
                         registers[rd][7:0] <= mem_read[7:0];
-                        registers[rd][31:8] <= { {24{ mem_read[7] & memory_size[2] } } };
+                        registers[rd][31:8] <= { {24{ mem_read[7] & ~memory_size[2] } } };
                       end
                     1:
                       begin
                         registers[rd][7:0] <= mem_read[15:8];
-                        registers[rd][31:8] <= { {24{ mem_read[15] & memory_size[2] } } };
+                        registers[rd][31:8] <= { {24{ mem_read[15] & ~memory_size[2] } } };
                       end
                     2:
                       begin
                         registers[rd][7:0] <= mem_read[23:16];
-                        registers[rd][31:8] <= { {24{ mem_read[23] & memory_size[2] } } };
+                        registers[rd][31:8] <= { {24{ mem_read[23] & ~memory_size[2] } } };
                       end
                     3:
                       begin
                         registers[rd][7:0] <= mem_read[31:24];
-                        registers[rd][31:8] <= { {24{ mem_read[31] & memory_size[2] } } };
+                        registers[rd][31:8] <= { {24{ mem_read[31] & ~memory_size[2] } } };
                       end
                   endcase
                 end
               3'b01:
                 begin
-                  case (ea[1:0])
-                    0,1:
+                  case (ea[1])
+                    0:
                       begin
                         registers[rd][15:0] <= mem_read[15:0];
-                        registers[rd][31:8] <= { {16{ mem_read[15] & memory_size[2] } } };
+                        registers[rd][31:16] <= { {16{ mem_read[15] & ~memory_size[2] } } };
                       end
-                    2,3:
+                    1:
                       begin
                         registers[rd][15:0] <= mem_read[31:16];
-                        registers[rd][31:8] <= { {16{ mem_read[31] & memory_size[2] } } };
+                        registers[rd][31:16] <= { {16{ mem_read[31] & ~memory_size[2] } } };
                       end
                   endcase
                 end
