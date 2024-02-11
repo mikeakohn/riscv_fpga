@@ -5,7 +5,7 @@
 //   Board: iceFUN iCE40 HX8K
 // License: MIT
 //
-// Copyright 2023 by Michael Kohn
+// Copyright 2023-2024 by Michael Kohn
 
 // The purpose of this module is to route reads and writes to the 4
 // different memory banks. Originally the idea was to have ROM and RAM
@@ -19,7 +19,7 @@ module memory_bus
   input  [31:0] data_in,
   input  [3:0] write_mask,
   output [31:0] data_out,
-  output [7:0] debug,
+  //output [7:0] debug,
   input bus_enable,
   input write_enable,
   input clk,
@@ -102,7 +102,7 @@ ram ram_1(
   .address      (address[11:0]),
   .data_in      (data_in),
   .data_out     (block_ram_data_out),
-  .debug        (debug),
+  //.debug        (debug),
   .write_mask   (write_mask),
   .write_enable (block_ram_write_enable),
   .clk          (raw_clk)

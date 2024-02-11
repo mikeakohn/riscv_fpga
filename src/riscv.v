@@ -47,7 +47,7 @@ wire [31:0] mem_read;
 reg mem_bus_enable = 0;
 reg mem_write_enable = 0;
 
-wire [7:0] mem_debug;
+//wire [7:0] mem_debug;
 
 // Clock.
 reg [21:0] count = 0;
@@ -610,7 +610,7 @@ memory_bus memory_bus_0(
   .data_in      (mem_write),
   .write_mask   (mem_write_mask),
   .data_out     (mem_read),
-  .debug        (mem_debug),
+  //.debug        (mem_debug),
   //.data_ready   (mem_data_ready),
   .bus_enable   (mem_bus_enable),
   .write_enable (mem_write_enable),

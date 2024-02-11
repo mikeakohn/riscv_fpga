@@ -18,7 +18,7 @@ module ram
   input [11:0] address,
   input [31:0] data_in,
   output reg [31:0] data_out,
-  output reg [7:0] debug,
+  //output reg [7:0] debug,
   input [3:0] write_mask,
   input write_enable,
   input clk
@@ -35,7 +35,7 @@ assign aligned_address = address[11:2];
 //always @(posedge double_clk) begin
 always @(posedge clk) begin
   if (write_enable) begin
-    debug <= write_mask;
+    //debug <= write_mask;
 
     if (!write_mask[0]) storage_0[aligned_address] <= data_in[7:0];
     if (!write_mask[1]) storage_1[aligned_address] <= data_in[15:8];
