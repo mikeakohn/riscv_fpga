@@ -273,7 +273,7 @@ mandelbrot_for_count:
   sub a5, a6, a7
   and a5, a5, t3
 
-  ;; ti = ((zr * zi) >> DEC_PLACE) << 1;
+  ;; ti = ((zr * zi * 2) >> DEC_PLACE) << 1;
   multiply_signed(s6, s7)
   slli a3, a3, 1
   ;mv t1, a3
