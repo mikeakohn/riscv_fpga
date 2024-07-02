@@ -353,8 +353,8 @@ mandelbrot_hw_for_x:
   and s5, s5, t3
   addi s3, s3, -1
   bnez s3, mandelbrot_hw_for_y
-
   jalr zero, s1, 0
+
 ;; lcd_send_cmd(a0)
 lcd_send_cmd:
   li t0, LCD_RES

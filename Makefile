@@ -1,7 +1,6 @@
 
 PROGRAM=riscv
 SOURCE= \
-  src/$(PROGRAM).v \
   src/eeprom.v \
   src/mandelbrot.v \
   src/memory_bus.v \
@@ -11,7 +10,12 @@ SOURCE= \
   src/spi.v
 
 default:
-	yosys -q -p "synth_ice40 -top $(PROGRAM) -json $(PROGRAM).json" $(SOURCE)
+	yosys -q -p "synth_ice40 -top $(PROGRAM) -json $(PROGRAM).json" $(SOURCE) src/riscv.v
+	nextpnr-ice40 -r --hx8k --json $(PROGRAM).json --package cb132 --asc $(PROGRAM).asc --opt-timing --pcf icefun.pcf
+	icepack $(PROGRAM).asc $(PROGRAM).bin
+
+ciscv:
+	yosys -q -p "synth_ice40 -top $(PROGRAM) -json $(PROGRAM).json" $(SOURCE) src/ciscv.v
 	nextpnr-ice40 -r --hx8k --json $(PROGRAM).json --package cb132 --asc $(PROGRAM).asc --opt-timing --pcf icefun.pcf
 	icepack $(PROGRAM).asc $(PROGRAM).bin
 
@@ -24,6 +28,14 @@ blink:
 
 lcd:
 	naken_asm -l -type bin -o rom.bin test/lcd.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
+
+ciscv_test:
+	naken_asm -l -type bin -o rom.bin test/ciscv.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
+
+ciscv_speed:
+	naken_asm -l -type bin -o rom.bin test/ciscv_speed.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
 rom_0:
