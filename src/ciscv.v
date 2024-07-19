@@ -15,12 +15,12 @@
 //                    rs2   rs1       rd
 // lb.base  0100 000 00000 00000 000 rrrrr 0110111 (lb.base rd, rs1, rs2)
 // lh.base  0100 000 00000 00000 001 rrrrr 0110111  rd <- [rs1 + rs2]
-// lw.base  0100 000 00000 00000 010 rrrrr 0110111 
-// lbu.base 0100 000 00000 00000 100 rrrrr 0110111 
-// lhu.base 0100 000 00000 00000 101 rrrrr 0110111 
+// lw.base  0100 000 00000 00000 010 rrrrr 0110111
+// lbu.base 0100 000 00000 00000 100 rrrrr 0110111
+// lhu.base 0100 000 00000 00000 101 rrrrr 0110111
 // sb.base  1000 000 00000 00000 000 rrrrr 0110111 (sb.base rd, rs1, rs2)
 // sh.base  1000 000 00000 00000 001 rrrrr 0110111  rd -> [rs1 + rs2]
-// sw.base  1000 000 00000 00000 010 rrrrr 0110111 
+// sw.base  1000 000 00000 00000 010 rrrrr 0110111
 
 //                    rs2   rs1              rd
 // lb.pre   iiii iiii iiii rrrrr 000 rrrrr 0001011 (update rs1, rd <- [rs1])
@@ -28,9 +28,9 @@
 // lw.pre   iiii iiii iiii rrrrr 010 rrrrr 0001011
 // lbu.pre  iiii iiii iiii rrrrr 100 rrrrr 0001011
 // lhu.pre  iiii iiii iiii rrrrr 101 rrrrr 0001011
-// sb.pre   iiiiiii  rrrrr rrrrr 000 rrrrr 0101011 (update rs2, rd -> [rs2])
-// sh.pre   iiiiiii  rrrrr rrrrr 001 rrrrr 0101011
-// sw.pre   iiiiiii  rrrrr rrrrr 010 rrrrr 0101011
+// sb.pre   iiiiiii  rrrrr rrrrr 000 iiiii 0101011 (update rs2, rd -> [rs2])
+// sh.pre   iiiiiii  rrrrr rrrrr 001 iiiii 0101011
+// sw.pre   iiiiiii  rrrrr rrrrr 010 iiiii 0101011
 
 // lb.post  iiii iiii iiii rrrrr 000 rrrrr 0001111 (rd <- [rs1], update rs1)
 // lh.post  iiii iiii iiii rrrrr 000 rrrrr 0001111
@@ -38,9 +38,9 @@
 // lbu.pre  iiii iiii iiii rrrrr 010 rrrrr 0001111
 // lbu.post iiii iiii iiii rrrrr 000 rrrrr 0001111
 // lhu.post iiii iiii iiii rrrrr 000 rrrrr 0001111
-// sb.post  iiiiiii  rrrrr rrrrr 000 rrrrr 0101111 (rd -> [rs2], update rs2)
-// sh.post  iiiiiii  rrrrr rrrrr 001 rrrrr 0101111
-// sw.post  iiiiiii  rrrrr rrrrr 010 rrrrr 0101111
+// sb.post  iiiiiii  rrrrr rrrrr 000 iiiii 0101111 (rd -> [rs2], update rs2)
+// sh.post  iiiiiii  rrrrr rrrrr 001 iiiii 0101111
+// sw.post  iiiiiii  rrrrr rrrrr 010 iiiii 0101111
 
 module riscv
 (
@@ -192,7 +192,7 @@ parameter STATE_STORE_0 =      7;
 parameter STATE_STORE_1 =      8;
 
 parameter STATE_ALU_0 =        9;
-parameter STATE_ALU_1 =        10;
+//parameter STATE_ALU_1 =        10;
 
 parameter STATE_BRANCH_1 =     11;
 parameter STATE_MANDELBROT_1 = 12;
@@ -410,22 +410,23 @@ always @(posedge clk) begin
               begin
                 // ALU immediate.
                 case (funct3)
-                  3'b000: temp <= $signed(registers[rs1]) + $signed(instruction[31:20]);
-                  3'b010: temp <= $signed(registers[rs1]) < sign12(instruction[31:20]);
-                  3'b011: temp <= $signed(registers[rs1]) < instruction[31:20];
-                  3'b100: temp <= registers[rs1] ^ sign12(instruction[31:20]);
-                  3'b110: temp <= registers[rs1] | sign12(instruction[31:20]);
-                  3'b111: temp <= registers[rs1] & sign12(instruction[31:20]);
+                  3'b000: registers[rd] <= $signed(registers[rs1]) + $signed(instruction[31:20]);
+                  3'b010: registers[rd] <= $signed(registers[rs1]) < sign12(instruction[31:20]);
+                  3'b011: registers[rd] <= $signed(registers[rs1]) < instruction[31:20];
+                  3'b100: registers[rd] <= registers[rs1] ^ sign12(instruction[31:20]);
+                  3'b110: registers[rd] <= registers[rs1] | sign12(instruction[31:20]);
+                  3'b111: registers[rd] <= registers[rs1] & sign12(instruction[31:20]);
                   // Shift.
-                  3'b001: temp <= registers[rs1] << shamt;
+                  3'b001: registers[rd] <= registers[rs1] << shamt;
                   3'b101:
                     if (funct7 == 0)
-                      temp <= registers[rs1] >> shamt;
+                      registers[rd] <= registers[rs1] >> shamt;
                     else
-                      temp <= $signed(registers[rs1]) >>> shamt;
+                      registers[rd] <= $signed(registers[rs1]) >>> shamt;
                 endcase
 
-                state <= STATE_ALU_1;
+                //state <= STATE_ALU_1;
+                state <= STATE_FETCH_OP_0;
               end
             7'b0110011:
               begin
@@ -570,31 +571,34 @@ always @(posedge clk) begin
           case (funct3)
             3'b000:
               case (funct7)
-                7'h00: temp <= registers[rs1] + source;
+                7'h00: registers[rd] <= registers[rs1] + source;
                 // Doesn't fit on iCE40 HX8K.
-                //7'h01: temp <= $signed(registers[rs1]) * $signed(source);
-                7'h20: temp <= registers[rs1] - source;
+                //7'h01: registers[rd] <= $signed(registers[rs1]) * $signed(source);
+                7'h20: registers[rd] <= registers[rs1] - source;
               endcase
-            3'b001: temp <= registers[rs1] << source;
-            3'b010: temp <= $signed(registers[rs1]) < $signed(source) ? 1 : 0;
-            3'b011: temp <= registers[rs1] < source;
-            3'b100: temp <= registers[rs1] ^ source;
+            3'b001: registers[rd] <= registers[rs1] << source;
+            3'b010: registers[rd] <= $signed(registers[rs1]) < $signed(source) ? 1 : 0;
+            3'b011: registers[rd] <= registers[rs1] < source;
+            3'b100: registers[rd] <= registers[rs1] ^ source;
             3'b101:
               if (funct7 == 0)
-                temp <= registers[rs1] >> source;
+                registers[rd] <= registers[rs1] >> source;
               else
-                temp <= $signed(registers[rs1]) >>> source;
-            3'b110: temp <= registers[rs1] | source;
-            3'b111: temp <= registers[rs1] & source;
+                registers[rd] <= $signed(registers[rs1]) >>> source;
+            3'b110: registers[rd] <= registers[rs1] | source;
+            3'b111: registers[rd] <= registers[rs1] & source;
           endcase
 
-          state <= STATE_ALU_1;
+          //state <= STATE_ALU_1;
+          state <= STATE_FETCH_OP_0;
         end
+/*
       STATE_ALU_1:
         begin
           registers[rd] <= temp;
           state <= STATE_FETCH_OP_0;
         end
+*/
       STATE_BRANCH_1:
         begin
           case (funct3)
