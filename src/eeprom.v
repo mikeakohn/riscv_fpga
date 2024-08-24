@@ -1,4 +1,4 @@
-// Ferrati F100-L FPGA Soft Processor
+// RISC-V FPGA Soft Processor
 //  Author: Michael Kohn
 //   Email: mike@mikekohn.net
 //     Web: https://www.mikekohn.net/
