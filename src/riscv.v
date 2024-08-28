@@ -504,22 +504,22 @@ always @(posedge clk) begin
           case (funct3)
             3'b000:
               if (registers[rs1] == source)
-                pc <= $signed(pc_current) + branch_offset;
+                pc <= branch_address;
             3'b001:
               if (registers[rs1] != source)
-                pc <= $signed(pc_current) + branch_offset;
+                pc <= branch_address;
             3'b100:
               if ($signed(registers[rs1]) < $signed(source))
-                pc <= $signed(pc_current) + branch_offset;
+                pc <= branch_address;
             3'b101:
               if ($signed(registers[rs1]) >= $signed(source))
-                pc <= $signed(pc_current) + branch_offset;
+                pc <= branch_address;
             3'b110:
               if (registers[rs1] < source)
-                pc <= $signed(pc_current) + branch_offset;
+                pc <= branch_address;
             3'b111:
               if (registers[rs1] >= source)
-                pc <= $signed(pc_current) + branch_offset;
+                pc <= branch_address;
           endcase
 
           state <= STATE_FETCH_OP_0;
