@@ -91,7 +91,7 @@ assign branch_offset = {
 };
 
 reg [31:0] source;
-reg [31:0] temp;
+reg [31:0] result;
 
 // Load / Store.
 assign memory_size = instruction[14:12];
@@ -269,7 +269,7 @@ always @(posedge clk) begin
               begin
                 // jalr.
                 pc <= ($signed(registers[rs1]) + $signed(instruction[31:20])) & 16'hfffc;
-                //temp <= pc;
+                //result <= pc;
                 //state <= STATE_ALU_1;
                 registers[rd] <= pc;
                 state <= STATE_FETCH_OP_0;
@@ -301,19 +301,19 @@ always @(posedge clk) begin
               begin
                 // ALU immediate.
                 case (funct3)
-                  3'b000: temp <= $signed(registers[rs1]) + $signed(instruction[31:20]);
-                  3'b010: temp <= $signed(registers[rs1]) < sign12(instruction[31:20]);
-                  3'b011: temp <= $signed(registers[rs1]) < instruction[31:20];
-                  3'b100: temp <= registers[rs1] ^ sign12(instruction[31:20]);
-                  3'b110: temp <= registers[rs1] | sign12(instruction[31:20]);
-                  3'b111: temp <= registers[rs1] & sign12(instruction[31:20]);
+                  3'b000: result <= $signed(registers[rs1]) + $signed(instruction[31:20]);
+                  3'b010: result <= $signed(registers[rs1]) < sign12(instruction[31:20]);
+                  3'b011: result <= $signed(registers[rs1]) < instruction[31:20];
+                  3'b100: result <= registers[rs1] ^ sign12(instruction[31:20]);
+                  3'b110: result <= registers[rs1] | sign12(instruction[31:20]);
+                  3'b111: result <= registers[rs1] & sign12(instruction[31:20]);
                   // Shift.
-                  3'b001: temp <= registers[rs1] << shamt;
+                  3'b001: result <= registers[rs1] << shamt;
                   3'b101:
                     if (funct7 == 0)
-                      temp <= registers[rs1] >> shamt;
+                      result <= registers[rs1] >> shamt;
                     else
-                      temp <= $signed(registers[rs1]) >>> shamt;
+                      result <= $signed(registers[rs1]) >>> shamt;
                 endcase
 
                 state <= STATE_ALU_1;
@@ -459,29 +459,29 @@ always @(posedge clk) begin
           case (funct3)
             3'b000:
               case (funct7)
-                7'h00: temp <= registers[rs1] + source;
+                7'h00: result <= registers[rs1] + source;
                 // Doesn't fit on iCE40 HX8K.
-                //7'h01: temp <= $signed(registers[rs1]) * $signed(source);
-                7'h20: temp <= registers[rs1] - source;
+                //7'h01: result <= $signed(registers[rs1]) * $signed(source);
+                7'h20: result <= registers[rs1] - source;
               endcase
-            3'b001: temp <= registers[rs1] << source;
-            3'b010: temp <= $signed(registers[rs1]) < $signed(source) ? 1 : 0;
-            3'b011: temp <= registers[rs1] < source;
-            3'b100: temp <= registers[rs1] ^ source;
+            3'b001: result <= registers[rs1] << source;
+            3'b010: result <= $signed(registers[rs1]) < $signed(source) ? 1 : 0;
+            3'b011: result <= registers[rs1] < source;
+            3'b100: result <= registers[rs1] ^ source;
             3'b101:
               if (funct7 == 0)
-                temp <= registers[rs1] >> source;
+                result <= registers[rs1] >> source;
               else
-                temp <= $signed(registers[rs1]) >>> source;
-            3'b110: temp <= registers[rs1] | source;
-            3'b111: temp <= registers[rs1] & source;
+                result <= $signed(registers[rs1]) >>> source;
+            3'b110: result <= registers[rs1] | source;
+            3'b111: result <= registers[rs1] & source;
           endcase
 
           state <= STATE_ALU_1;
         end
       STATE_ALU_1:
         begin
-          registers[rd] <= temp;
+          registers[rd] <= result;
           state <= STATE_FETCH_OP_0;
         end
       STATE_BRANCH_1:
