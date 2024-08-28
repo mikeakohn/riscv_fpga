@@ -1,6 +1,8 @@
 .riscv
 
-.org 0xc000
+;; Set to 0xc000 for eeprom.
+;.org 0xc000
+.org 0x4000
 
 ;; Registers.
 BUTTON     equ 0x00

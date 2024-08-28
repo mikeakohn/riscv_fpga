@@ -111,7 +111,7 @@ reg [31:0] result;
 // Load / Store.
 assign memory_size = instruction[14:12];
 reg [31:0] ea;
-reg [31:0] ea_aligned;
+//reg [31:0] ea_aligned;
 
 // Lower 6 its of the instruction.
 wire [5:0] opcode;
@@ -184,9 +184,11 @@ parameter STATE_EEPROM_WAIT =  24;
 parameter STATE_EEPROM_WRITE = 25;
 parameter STATE_EEPROM_DONE =  26;
 
+/*
 function signed [31:0] sign12(input signed [11:0] data);
   sign12 = data;
 endfunction
+*/
 
 //`define sign_imm12(data) { {20{ data[31] }}, data[31:20] }
 
@@ -284,8 +286,6 @@ always @(posedge clk) begin
               begin
                 // jalr.
                 pc <= ($signed(registers[rs1]) + simm) & 16'hfffc;
-                //result <= pc;
-                //state <= STATE_ALU_1;
                 registers[rd] <= pc;
                 state <= STATE_FETCH_OP_0;
               end
@@ -307,8 +307,8 @@ always @(posedge clk) begin
             7'b0100011:
               begin
                 // Store.
-                ea <= registers[rs1] + sign12( { funct7, instruction[11:7] } );
-                mem_address <= registers[rs1] + sign12( { funct7, instruction[11:7] } );
+                ea <= registers[rs1] + st_offset;
+                mem_address <= registers[rs1] + st_offset;
                 mem_bus_enable <= 0;
                 state <= STATE_STORE_0;
               end
@@ -413,43 +413,25 @@ always @(posedge clk) begin
           case (funct3)
             3'b000:
               begin
-                case (ea[1:0])
-                  2'b00:
-                    begin
-                      mem_write <= { 24'h0000, registers[rs2][7:0] };
-                      mem_write_mask <= 4'b1110;
-                    end
-                  2'b01:
-                    begin
-                      mem_write <= { 16'h0000, registers[rs2][7:0], 8'h00 };
-                      mem_write_mask <= 4'b1101;
-                    end
-                  2'b10:
-                    begin
-                      mem_write <= { 8'h00, registers[rs2][7:0], 16'h0000 };
-                      mem_write_mask <= 4'b1011;
-                    end
-                  2'b11:
-                    begin
-                      mem_write <= { registers[rs2][7:0], 24'h0000 };
-                      mem_write_mask <= 4'b0111;
-                    end
-                endcase
+                mem_write[7:0]   <= registers[rs2][7:0];
+                mem_write[15:8]  <= registers[rs2][7:0];
+                mem_write[23:16] <= registers[rs2][7:0];
+                mem_write[31:24] <= registers[rs2][7:0];
+
+                mem_write_mask[0] <= ~(ea[1:0] == 0);
+                mem_write_mask[1] <= ~(ea[1:0] == 1);
+                mem_write_mask[2] <= ~(ea[1:0] == 2);
+                mem_write_mask[3] <= ~(ea[1:0] == 3);
               end
             3'b001:
               begin
-                case (ea[1:0])
-                  2'b00:
-                    begin
-                      mem_write <= { 16'h0000, registers[rs2][15:0] };
-                      mem_write_mask <= 4'b1100;
-                    end
-                  2'b10:
-                    begin
-                      mem_write <= { registers[rs2][15:0], 16'h0000 };
-                      mem_write_mask <= 4'b0011;
-                    end
-                endcase
+                mem_write[15:0] <= registers[rs2][15:0];
+                mem_write[31:16] <= registers[rs2][15:0];
+
+                mem_write_mask[0] <= ea[1:0] == 2;
+                mem_write_mask[1] <= ea[1:0] == 2;
+                mem_write_mask[2] <= ea[1:0] == 0;
+                mem_write_mask[3] <= ea[1:0] == 0;
               end
             3'b010:
               begin

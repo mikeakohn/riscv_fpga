@@ -38,7 +38,7 @@ ciscv_speed:
 	naken_asm -l -type bin -o rom.bin test/ciscv_speed.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
-rom_0:
+store_byte:
 	naken_asm -l -type bin -o rom.bin test/store_byte.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
