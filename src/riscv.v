@@ -73,7 +73,7 @@ wire [4:0] rs2;
 wire [4:0] shamt;
 wire [2:0] funct3;
 wire [6:0] funct7;
-wire [12:0] branch_offset;
+wire signed [12:0] branch_offset;
 wire [2:0] memory_size;
 assign op  = instruction[6:0];
 assign rd  = instruction[11:7];
@@ -489,22 +489,22 @@ always @(posedge clk) begin
           case (funct3)
             3'b000:
               if (registers[rs1] == source)
-                pc <= $signed(pc_current) + $signed(branch_offset);
+                pc <= $signed(pc_current) + branch_offset;
             3'b001:
               if (registers[rs1] != source)
-                pc <= $signed(pc_current) + $signed(branch_offset);
+                pc <= $signed(pc_current) + branch_offset;
             3'b100:
               if ($signed(registers[rs1]) < $signed(source))
-                pc <= $signed(pc_current) + $signed(branch_offset);
+                pc <= $signed(pc_current) + branch_offset;
             3'b101:
               if ($signed(registers[rs1]) >= $signed(source))
-                pc <= $signed(pc_current) + $signed(branch_offset);
+                pc <= $signed(pc_current) + branch_offset;
             3'b110:
               if (registers[rs1] < source)
-                pc <= $signed(pc_current) + $signed(branch_offset);
+                pc <= $signed(pc_current) + branch_offset;
             3'b111:
               if (registers[rs1] >= source)
-                pc <= $signed(pc_current) + $signed(branch_offset);
+                pc <= $signed(pc_current) + branch_offset;
           endcase
 
           state <= STATE_FETCH_OP_0;
