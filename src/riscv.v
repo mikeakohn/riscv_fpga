@@ -90,6 +90,21 @@ assign branch_offset = {
   1'b0
 };
 
+wire [31:0] upper_immediate;
+assign upper_immediate = { instruction[31:12], 12'h000 };
+
+wire [11:0] uimm;
+wire signed [11:0] simm;
+assign uimm = instruction[31:20];
+assign simm = instruction[31:20];
+
+wire signed [11:0] st_offset;
+assign st_offset = { funct7, instruction[11:7] };
+
+wire [15:0] branch_address;
+assign branch_address = $signed(pc_current) + branch_offset;
+reg do_branch;
+
 reg [31:0] source;
 reg [31:0] result;
 
@@ -268,7 +283,7 @@ always @(posedge clk) begin
             7'b1100111:
               begin
                 // jalr.
-                pc <= ($signed(registers[rs1]) + $signed(instruction[31:20])) & 16'hfffc;
+                pc <= ($signed(registers[rs1]) + simm) & 16'hfffc;
                 //result <= pc;
                 //state <= STATE_ALU_1;
                 registers[rd] <= pc;
@@ -283,10 +298,10 @@ always @(posedge clk) begin
             7'b0000011:
               begin
                 // Load.
-                ea <= registers[rs1] + sign12(instruction[31:20]);
+                ea <= registers[rs1] + simm;
                 mem_bus_enable <= 1;
                 mem_write_enable <= 0;
-                mem_address <= registers[rs1] + sign12(instruction[31:20]);
+                mem_address <= registers[rs1] + simm;
                 state <= STATE_FETCH_LOAD_1;
               end
             7'b0100011:
@@ -301,12 +316,12 @@ always @(posedge clk) begin
               begin
                 // ALU immediate.
                 case (funct3)
-                  3'b000: result <= $signed(registers[rs1]) + $signed(instruction[31:20]);
-                  3'b010: result <= $signed(registers[rs1]) < sign12(instruction[31:20]);
-                  3'b011: result <= $signed(registers[rs1]) < instruction[31:20];
-                  3'b100: result <= registers[rs1] ^ sign12(instruction[31:20]);
-                  3'b110: result <= registers[rs1] | sign12(instruction[31:20]);
-                  3'b111: result <= registers[rs1] & sign12(instruction[31:20]);
+                  3'b000: result <= $signed(registers[rs1]) + simm;
+                  3'b010: result <= $signed(registers[rs1]) < simm;
+                  3'b011: result <= $signed(registers[rs1]) < uimm;
+                  3'b100: result <= registers[rs1] ^ simm;
+                  3'b110: result <= registers[rs1] | simm;
+                  3'b111: result <= registers[rs1] & simm;
                   // Shift.
                   3'b001: result <= registers[rs1] << shamt;
                   3'b101:
