@@ -12,6 +12,10 @@ module riscv
   output [7:0] leds,
   output [3:0] column,
   input raw_clk,
+  output eeprom_cs,
+  output eeprom_clk,
+  output eeprom_di,
+  input  eeprom_do,
   output speaker_p,
   output speaker_m,
   output ioport_0,
@@ -113,6 +117,22 @@ reg [31:0] ea;
 wire [5:0] opcode;
 assign opcode = instruction[5:0];
 
+// Eeprom.
+reg [10:0] eeprom_count;
+wire [7:0] eeprom_data_out;
+reg  [7:0] eeprom_holding [3:0];
+reg [10:0] eeprom_address;
+reg [15:0] eeprom_mem_address;
+reg eeprom_strobe = 0;
+wire eeprom_ready;
+
+// Mandelbrot.
+reg [15:0] mandelbrot_r;
+reg [15:0] mandelbrot_i;
+wire mandelbrot_busy;
+reg mandelbrot_start = 0;
+wire [3:0] mandelbrot_result;
+
 // Debug.
 //reg [7:0] debug_0 = 0;
 //reg [7:0] debug_1 = 0;
@@ -152,10 +172,17 @@ parameter STATE_ALU_0 =        9;
 parameter STATE_ALU_1 =        10;
 
 parameter STATE_BRANCH_1 =     11;
+parameter STATE_MANDELBROT_1 = 12;
+parameter STATE_MANDELBROT_2 = 13;
 
-parameter STATE_DEBUG =        29;
-parameter STATE_ERROR =        30;
-parameter STATE_HALTED =       31;
+parameter STATE_HALTED =       19;
+parameter STATE_ERROR =        20;
+parameter STATE_DEBUG =        21;
+parameter STATE_EEPROM_START = 22;
+parameter STATE_EEPROM_READ =  23;
+parameter STATE_EEPROM_WAIT =  24;
+parameter STATE_EEPROM_WRITE = 25;
+parameter STATE_EEPROM_DONE =  26;
 
 /*
 function signed [31:0] sign12(input signed [11:0] data);
@@ -180,14 +207,23 @@ always @(posedge clk) begin
           mem_write <= 0;
           instruction <= 0;
           delay_loop <= 12000;
+          //eeprom_strobe <= 0;
+          mandelbrot_start <= 0;
           state <= STATE_DELAY_LOOP;
         end
       STATE_DELAY_LOOP:
         begin
           // This is probably not needed. The chip starts up fine without it.
           if (delay_loop == 0) begin
-            pc <= 16'h4000;
-            state <= STATE_FETCH_OP_0;
+
+            // If button is not pushed, start rom.v code otherwise use EEPROM.
+            if (button_program_select) begin
+              pc <= 16'h4000;
+              state <= STATE_FETCH_OP_0;
+            end else begin
+              pc <= 16'hc000;
+              state <= STATE_EEPROM_START;
+            end
           end else begin
             delay_loop <= delay_loop - 1;
           end
@@ -222,6 +258,14 @@ always @(posedge clk) begin
                 // auipc.
                 registers[rd] <= pc_current + { instruction[31:12], 12'b0 };
                 state <= STATE_FETCH_OP_0;
+              end
+            7'b0111011:
+              begin
+                // mandel rd, rs1, rs2 (aka feq.d)
+                if (funct7 == 7'b0000001 && funct3 == 3'b000) begin
+                  mandelbrot_r <= registers[rs1];
+                  state <= STATE_MANDELBROT_1;
+                end
               end
             7'b1101111:
               begin
@@ -462,17 +506,98 @@ always @(posedge clk) begin
 
           state <= STATE_FETCH_OP_0;
         end
-      STATE_DEBUG:
+      STATE_MANDELBROT_1:
         begin
-          state <= STATE_DEBUG;
+          mandelbrot_start <= 1;
+          mandelbrot_i <= registers[rs2];
+          state <= STATE_MANDELBROT_2;
+        end
+      STATE_MANDELBROT_2:
+        begin
+          if (!mandelbrot_busy) begin
+            state <= STATE_FETCH_OP_0;
+            registers[rd] <= mandelbrot_result;
+          end
+          mandelbrot_start <= 0;
+        end
+      STATE_HALTED:
+        begin
+          state <= STATE_HALTED;
         end
       STATE_ERROR:
         begin
           state <= STATE_ERROR;
         end
-      STATE_HALTED:
+      STATE_DEBUG:
         begin
-          state <= STATE_HALTED;
+          state <= STATE_DEBUG;
+        end
+      STATE_EEPROM_START:
+        begin
+          // Initialize values for reading from SPI-like EEPROM.
+          if (eeprom_ready) begin
+            //eeprom_mem_address <= pc;
+            eeprom_mem_address <= 16'hc000;
+            eeprom_count <= 0;
+            state <= STATE_EEPROM_READ;
+          end
+        end
+      STATE_EEPROM_READ:
+        begin
+          // Set the next EEPROM address to read from and strobe.
+          mem_bus_enable <= 0;
+          eeprom_address <= eeprom_count;
+          eeprom_strobe <= 1;
+          state <= STATE_EEPROM_WAIT;
+        end
+      STATE_EEPROM_WAIT:
+        begin
+          // Wait until 8 bits are clocked in.
+          eeprom_strobe <= 0;
+
+          if (eeprom_ready) begin
+
+            if (eeprom_count[1:0] == 3) begin
+              mem_address <= eeprom_mem_address;
+              mem_write_mask <= 4'b0000;
+              // After reading 4 bytes, store the 32 bit value to RAM.
+              mem_write <= {
+                eeprom_data_out,
+                eeprom_holding[2],
+                eeprom_holding[1],
+                eeprom_holding[0]
+              };
+
+              state <= STATE_EEPROM_WRITE;
+            end else begin
+              // Read 3 bytes into a holding register.
+              eeprom_holding[eeprom_count[1:0]] <= eeprom_data_out;
+              state <= STATE_EEPROM_READ;
+            end
+
+            eeprom_count <= eeprom_count + 1;
+          end
+        end
+      STATE_EEPROM_WRITE:
+        begin
+          // Write value read from EEPROM into memory.
+          mem_bus_enable <= 1;
+          mem_write_enable <= 1;
+          eeprom_mem_address <= eeprom_mem_address + 4;
+
+          state <= STATE_EEPROM_DONE;
+        end
+      STATE_EEPROM_DONE:
+        begin
+          // Finish writing and read next byte if needed.
+          mem_bus_enable <= 0;
+          mem_write_enable <= 0;
+
+          if (eeprom_count == 0) begin
+            // Read in 2048 bytes.
+            state <= STATE_FETCH_OP_0;
+          end else
+            state <= STATE_EEPROM_READ;
         end
     endcase
 end
@@ -499,6 +624,29 @@ memory_bus memory_bus_0(
   .spi_clk      (spi_clk),
   .spi_mosi     (spi_mosi),
   .spi_miso     (spi_miso)
+);
+
+eeprom eeprom_0
+(
+  .address    (eeprom_address),
+  .strobe     (eeprom_strobe),
+  .raw_clk    (raw_clk),
+  .eeprom_cs  (eeprom_cs),
+  .eeprom_clk (eeprom_clk),
+  .eeprom_di  (eeprom_di),
+  .eeprom_do  (eeprom_do),
+  .ready      (eeprom_ready),
+  .data_out   (eeprom_data_out)
+);
+
+mandelbrot mandelbrot_0
+(
+  .raw_clk  (raw_clk),
+  .start    (mandelbrot_start),
+  .curr_r   (mandelbrot_r),
+  .curr_i   (mandelbrot_i),
+  .result   (mandelbrot_result),
+  .busy     (mandelbrot_busy)
 );
 
 endmodule
