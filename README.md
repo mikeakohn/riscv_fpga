@@ -58,6 +58,20 @@ Instructions
     ebreak
     mandel rd, rs1, rs2
 
+Registers
+=========
+    x0         zero
+    x1         ra
+    x2         sp
+    x3         gp
+    x4         tp
+    x5 - x7    t0 - t2
+    x8         s0 / fp
+    x9         s1
+    x10 - x17  a0 - a7
+    x18 - x27  s2 - s11
+    x28 - x31  t3 - t6
+
 Memory Map
 ==========
 
