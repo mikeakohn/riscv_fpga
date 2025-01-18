@@ -287,7 +287,7 @@ mandelbrot_stop:
   slli a0, a0, 1
   li t0, colors
   add a0, t0, a0
-  lw a0, 0(a0)
+  lhu a0, 0(a0)
 
   jal lcd_send_data
 
