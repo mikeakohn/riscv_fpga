@@ -261,7 +261,7 @@ always @(posedge clk) begin
               end
             7'b0111011:
               begin
-                // mandel rd, rs1, rs2 (aka feq.d)
+                // mandel rd, rs1, rs2 (aka mulw)
                 if (funct7 == 7'b0000001 && funct3 == 3'b000) begin
                   mandelbrot_r <= registers[rs1];
                   state <= STATE_MANDELBROT_1;
