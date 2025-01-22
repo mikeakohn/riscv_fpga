@@ -56,7 +56,7 @@ assign clk = clock_div[0];
 // Registers.
 //wire [31:0] registers [0];
 //assign registers[0] = 0;
-reg [31:0] registers [31:0];
+reg [31:0] registers [31:1];
 reg [15:0] pc = 0;
 reg [15:0] pc_current = 0;
 
@@ -194,7 +194,7 @@ always @(posedge clk) begin
         end
       STATE_FETCH_OP_0:
         begin
-          registers[0] <= 0;
+          //registers[0] <= 0;
           mem_bus_enable <= 1;
           mem_write_enable <= 0;
           mem_address <= pc;

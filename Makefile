@@ -53,15 +53,15 @@ store_byte:
 	naken_asm -l -type bin -o rom.bin test/store_byte.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
-rom_1:
+load_byte:
 	naken_asm -l -type bin -o rom.bin test/load_byte.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
-rom_2:
+alu:
 	naken_asm -l -type bin -o rom.bin test/alu.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
-rom_3:
+spi:
 	naken_asm -l -type bin -o rom.bin test/spi.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
