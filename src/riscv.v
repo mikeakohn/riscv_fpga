@@ -142,16 +142,16 @@ parameter STATE_DELAY_LOOP =   1;
 parameter STATE_FETCH_OP_0 =   2;
 parameter STATE_FETCH_OP_1 =   3;
 parameter STATE_START_DECODE = 4;
-parameter STATE_EXECUTE_E =    5;
-parameter STATE_FETCH_LOAD_1 = 6;
+parameter STATE_FETCH_LOAD_0 = 5;
 
-parameter STATE_STORE_0 =      7;
-parameter STATE_STORE_1 =      8;
+parameter STATE_STORE_0 =      6;
+parameter STATE_STORE_1 =      7;
 
-parameter STATE_ALU_0 =        9;
-parameter STATE_ALU_1 =        10;
+parameter STATE_ALU_0 =        8;
+parameter STATE_ALU_1 =        9;
 
-parameter STATE_BRANCH_1 =     11;
+parameter STATE_BRANCH_1 =     10;
+parameter STATE_EXECUTE_E =    11;
 
 parameter STATE_DEBUG =        29;
 parameter STATE_ERROR =        30;
@@ -258,7 +258,7 @@ always @(posedge clk) begin
                 mem_bus_enable <= 1;
                 mem_write_enable <= 0;
                 mem_address <= registers[rs1] + simm;
-                state <= STATE_FETCH_LOAD_1;
+                state <= STATE_FETCH_LOAD_0;
               end
             7'b0100011:
               begin
@@ -297,6 +297,7 @@ always @(posedge clk) begin
               end
             7'b1110011:
               begin
+                // ebreak.
                 state <= STATE_EXECUTE_E;
               end
             default
@@ -305,13 +306,7 @@ always @(posedge clk) begin
               end
           endcase
         end
-      STATE_EXECUTE_E:
-        begin
-          // Since this core only supports "ebreak", send all instructions
-          // to the halted state.
-          state <= STATE_HALTED;
-        end
-      STATE_FETCH_LOAD_1:
+      STATE_FETCH_LOAD_0:
         begin
             mem_bus_enable <= 0;
 
@@ -461,6 +456,12 @@ always @(posedge clk) begin
           endcase
 
           state <= STATE_FETCH_OP_0;
+        end
+      STATE_EXECUTE_E:
+        begin
+          // Since this core only supports "ebreak", send all instructions
+          // to the halted state.
+          state <= STATE_HALTED;
         end
       STATE_DEBUG:
         begin
