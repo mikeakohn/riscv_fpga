@@ -20,44 +20,50 @@ IO, Button input, speaker tone generator, SPI, and Mandelbrot acceleration.
 Instructions
 ============
 
-    lui rd, imm             iiii iiii iiii iiii iiii ddddd 0110111
-    auipc rd, imm           iiii iiii iiii iiii iiii ddddd 0010111
-    jal rd, offset          iiii iiii iiii iiii iiii ddddd 1101111
-    jalr rd, rs1, offset    iiii iiii iiii sssss 000 ddddd 1100111
-    beq rs1, rs2, offset    iiii iii rrrrr sssss 000 iiiii 1100011
-    bne rs1, rs2, offset    iiii iii rrrrr sssss 001 iiiii 1100011
-    blt rs1, rs2, offset    iiii iii rrrrr sssss 100 iiiii 1100011
-    bge rs1, rs2, offset    iiii iii rrrrr sssss 101 iiiii 1100011
-    bltu rs1, rs2, offset   iiii iii rrrrr sssss 110 iiiii 1100011
-    bgeu rs1, rs2, offset   iiii iii rrrrr sssss 111 iiiii 1100011
-    lb rd, offset(rs1)      iiii iiii iiii sssss 000 ddddd 0000011
-    lh rd, offset(rs1)      iiii iiii iiii sssss 001 ddddd 0000011
-    lw rd, offset(rs1)      iiii iiii iiii sssss 010 ddddd 0000011
-    lbu rd, offset(rs1)     iiii iiii iiii sssss 100 ddddd 0000011
-    lhu rd, offset(rs1)     iiii iiii iiii sssss 101 ddddd 0000011
-    sb rd, offset(rs1)      iiii iii rrrrr sssss 000 iiiii 0100011
-    sh rd, offset(rs1)      iiii iii rrrrr sssss 001 iiiii 0100011
-    sw rd, offset(rs1)      iiii iii rrrrr sssss 010 iiiii 0100011
-    addi rd, rs1, imm       iiii iiii iiii sssss 000 ddddd 0010011
-    slti rd, rs1, imm       iiii iiii iiii sssss 010 ddddd 0010011
-    sltiu rd, rs1, imm      iiii iiii iiii sssss 011 ddddd 0010011
-    xori rd, rs1, imm       iiii iiii iiii sssss 100 ddddd 0010011
-    ori rd, rs1, imm        iiii iiii iiii sssss 110 ddddd 0010011
-    andi rd, rs1, imm       iiii iiii iiii sssss 111 ddddd 0010011
-    slli rd, rs1, imm       0000 000 shamt sssss 001 ddddd 0010011
-    srli rd, rs1, imm       0000 000 shamt sssss 101 ddddd 0010011
-    srai rd, rs1, imm       0100 000 shamt sssss 101 ddddd 0010011
-    add rd, rs1, rs2        0000 000 rrrrr sssss 000 ddddd 0110011
-    sub rd, rs1, rs2        0100 000 rrrrr sssss 000 ddddd 0110011
-    sll rd, rs1, rs2        0000 000 rrrrr sssss 001 ddddd 0110011
-    slt rd, rs1, rs2        0000 000 rrrrr sssss 010 ddddd 0110011
-    sltu rd, rs1, rs2       0000 000 rrrrr sssss 011 ddddd 0110011
-    xor rd, rs1, rs2        0000 000 rrrrr sssss 100 ddddd 0110011
-    srl rd, rs1, rs2        0000 000 rrrrr sssss 101 ddddd 0110011
-    sra rd, rs1, rs2        0100 000 rrrrr sssss 101 ddddd 0110011
-    or rd, rs1, rs2         0000 000 rrrrr sssss 110 ddddd 0110011
-    and rd, rs1, rs2        0000 000 rrrrr sssss 111 ddddd 0110011
-    ebreak                  0000 0000 0000 00000 000 00000 1110011
+    lb rd, offset(rs1)      iiii iiii iiii sssss 000 ddddd 0000 011
+    lh rd, offset(rs1)      iiii iiii iiii sssss 001 ddddd 0000 011
+    lw rd, offset(rs1)      iiii iiii iiii sssss 010 ddddd 0000 011
+    lbu rd, offset(rs1)     iiii iiii iiii sssss 100 ddddd 0000 011
+    lhu rd, offset(rs1)     iiii iiii iiii sssss 101 ddddd 0000 011
+
+    addi rd, rs1, imm       iiii iiii iiii sssss 000 ddddd 0010 011
+    slti rd, rs1, imm       iiii iiii iiii sssss 010 ddddd 0010 011
+    sltiu rd, rs1, imm      iiii iiii iiii sssss 011 ddddd 0010 011
+    xori rd, rs1, imm       iiii iiii iiii sssss 100 ddddd 0010 011
+    ori rd, rs1, imm        iiii iiii iiii sssss 110 ddddd 0010 011
+    andi rd, rs1, imm       iiii iiii iiii sssss 111 ddddd 0010 011
+    slli rd, rs1, imm       0000 000 shamt sssss 001 ddddd 0010 011
+    srli rd, rs1, imm       0000 000 shamt sssss 101 ddddd 0010 011
+    srai rd, rs1, imm       0100 000 shamt sssss 101 ddddd 0010 011
+
+    sb rd, offset(rs1)      iiii iii rrrrr sssss 000 iiiii 0100 011
+    sh rd, offset(rs1)      iiii iii rrrrr sssss 001 iiiii 0100 011
+    sw rd, offset(rs1)      iiii iii rrrrr sssss 010 iiiii 0100 011
+
+    add rd, rs1, rs2        0000 000 rrrrr sssss 000 ddddd 0110 011
+    sub rd, rs1, rs2        0100 000 rrrrr sssss 000 ddddd 0110 011
+    sll rd, rs1, rs2        0000 000 rrrrr sssss 001 ddddd 0110 011
+    slt rd, rs1, rs2        0000 000 rrrrr sssss 010 ddddd 0110 011
+    sltu rd, rs1, rs2       0000 000 rrrrr sssss 011 ddddd 0110 011
+    xor rd, rs1, rs2        0000 000 rrrrr sssss 100 ddddd 0110 011
+    srl rd, rs1, rs2        0000 000 rrrrr sssss 101 ddddd 0110 011
+    sra rd, rs1, rs2        0100 000 rrrrr sssss 101 ddddd 0110 011
+    or rd, rs1, rs2         0000 000 rrrrr sssss 110 ddddd 0110 011
+    and rd, rs1, rs2        0000 000 rrrrr sssss 111 ddddd 0110 011
+
+    beq rs1, rs2, offset    iiii iii rrrrr sssss 000 iiiii 1100 011
+    bne rs1, rs2, offset    iiii iii rrrrr sssss 001 iiiii 1100 011
+    blt rs1, rs2, offset    iiii iii rrrrr sssss 100 iiiii 1100 011
+    bge rs1, rs2, offset    iiii iii rrrrr sssss 101 iiiii 1100 011
+    bltu rs1, rs2, offset   iiii iii rrrrr sssss 110 iiiii 1100 011
+    bgeu rs1, rs2, offset   iiii iii rrrrr sssss 111 iiiii 1100 011
+
+    ebreak                  0000 0000 0000 00000 000 00000 1110 011
+
+    auipc rd, imm           iiii iiii iiii iiii iiii ddddd 0010 111
+    lui rd, imm             iiii iiii iiii iiii iiii ddddd 0110 111
+    jalr rd, rs1, offset    iiii iiii iiii sssss 000 ddddd 1100 111
+    jal rd, offset          iiii iiii iiii iiii iiii ddddd 1101 111
 
 For src/riscv_mandel.v, this instruction is encoded as mulw.
 
