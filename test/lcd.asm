@@ -111,7 +111,6 @@ start:
 main:
   jal lcd_init
   jal lcd_clear
-  ;jal lcd_clear_2
 
   li s2, 0
 main_while_1:
