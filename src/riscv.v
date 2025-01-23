@@ -54,8 +54,6 @@ wire clk;
 assign clk = clock_div[0];
 
 // Registers.
-//wire [31:0] registers [0];
-//assign registers[0] = 0;
 reg [31:0] registers [31:0];
 reg [15:0] pc = 0;
 reg [15:0] pc_current = 0;
@@ -80,6 +78,7 @@ assign rs2 = instruction[24:20];
 assign shamt = instruction[24:20];
 assign funct3 = instruction[14:12];
 assign funct7 = instruction[31:25];
+
 assign branch_offset = {
   instruction[31],
   instruction[7],
@@ -114,7 +113,8 @@ wire [31:0] alu_result;
 wire [31:0] wb_result;
 assign wb_result = is_alu ? alu_result : result;
 
-reg [2:0] alu_op;
+wire [2:0] alu_op;
+assign alu_op = funct3;
 reg is_alt;
 reg is_alu;
 reg [2:0] wb;
@@ -258,8 +258,6 @@ always @(posedge clk) begin
                   3'b000:
                     begin
                       // Load.
-                      ea <= registers[rs1] + simm;
-                      mem_address <= registers[rs1] + simm;
                       mem_bus_enable <= 1;
                       state <= STATE_FETCH_LOAD;
                     end
@@ -272,8 +270,6 @@ always @(posedge clk) begin
                   3'b100:
                     begin
                       // Store.
-                      ea <= registers[rs1] + st_offset;
-                      mem_address <= registers[rs1] + st_offset;
                       state <= STATE_STORE_0;
                     end
                   3'b110:
@@ -306,11 +302,8 @@ always @(posedge clk) begin
               end
           endcase
 
-          //ea <= registers[rs1] + ea_offset;
-          //mem_address <= registers[rs1] + ea_offset;
-
-          // FIXME: Can alu_op be a wire?
-          alu_op <= funct3;
+          ea <= registers[rs1] + ls_offset;
+          mem_address <= registers[rs1] + ls_offset;
 
           source <= registers[rs1];
         end
@@ -438,24 +431,6 @@ always @(posedge clk) begin
       STATE_ALU_IMM:
         begin
           // ALU immediate.
-/*
-          case (funct3)
-            3'b000: result <= $signed(registers[rs1]) + simm;
-            3'b010: result <= $signed(registers[rs1]) < simm;
-            3'b011: result <= $signed(registers[rs1]) < uimm;
-            3'b100: result <= registers[rs1] ^ simm;
-            3'b110: result <= registers[rs1] | simm;
-            3'b111: result <= registers[rs1] & simm;
-            // Shift.
-            3'b001: result <= registers[rs1] << shamt;
-            3'b101:
-              if (funct7 == 0)
-                result <= registers[rs1] >> shamt;
-              else
-                result <= $signed(registers[rs1]) >>> shamt;
-          endcase
-*/
-
           if (alu_op == ALU_OP_SLTU)
             arg_1 <= uimm;
           else if (alu_op == ALU_OP_SLL || alu_op == ALU_OP_SRL)
@@ -469,32 +444,6 @@ always @(posedge clk) begin
       STATE_ALU_REG:
         begin
           // ALU reg, reg.
-/*
-          case (funct3)
-            3'b000:
-              case (funct7)
-                7'h00: result <= registers[rs1] + source;
-                // Doesn't fit on iCE40 HX8K.
-                //7'h01: result <= $signed(registers[rs1]) * $signed(source);
-                7'h20: result <= registers[rs1] - source;
-              endcase
-            3'b001: result <= registers[rs1] << source;
-            3'b010: result <= $signed(registers[rs1]) < $signed(source) ? 1 : 0;
-            3'b011: result <= registers[rs1] < source;
-            3'b100: result <= registers[rs1] ^ source;
-            3'b101:
-              if (funct7 == 0)
-                result <= registers[rs1] >> source;
-              else
-                result <= $signed(registers[rs1]) >>> source;
-            3'b110: result <= registers[rs1] | source;
-            3'b111: result <= registers[rs1] & source;
-          endcase
-*/
-
-          //if (funct7[5] == 1) is_alt <= 1;
-          //is_alt <= funct7[5];
-
           arg_1 <= registers[rs2];
           is_alt <= funct7[5];
           state <= STATE_WRITEBACK;
