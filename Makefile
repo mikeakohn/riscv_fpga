@@ -1,6 +1,7 @@
 
 PROGRAM=riscv
 SOURCE= \
+  src/alu.v \
   src/memory_bus.v \
   src/peripherals.v \
   src/ram.v \
@@ -59,6 +60,14 @@ load_byte:
 
 alu:
 	naken_asm -l -type bin -o rom.bin test/alu.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
+
+jump:
+	naken_asm -l -type bin -o rom.bin test/jump.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
+
+branch:
+	naken_asm -l -type bin -o rom.bin test/branch.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
 spi:

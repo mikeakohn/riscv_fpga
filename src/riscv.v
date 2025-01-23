@@ -56,13 +56,14 @@ assign clk = clock_div[0];
 // Registers.
 //wire [31:0] registers [0];
 //assign registers[0] = 0;
-reg [31:0] registers [31:1];
+reg [31:0] registers [31:0];
 reg [15:0] pc = 0;
 reg [15:0] pc_current = 0;
 
 // Instruction
 reg [31:0] instruction;
-wire [6:0] op;
+wire [3:0] op;
+wire [2:0] op_lo;
 wire [4:0] rd;
 wire [4:0] rs1;
 wire [4:0] rs2;
@@ -71,7 +72,8 @@ wire [2:0] funct3;
 wire [6:0] funct7;
 wire signed [12:0] branch_offset;
 wire [2:0] memory_size;
-assign op  = instruction[6:0];
+assign op  = instruction[6:3];
+assign op_lo = instruction[2:0];
 assign rd  = instruction[11:7];
 assign rs1 = instruction[19:15];
 assign rs2 = instruction[24:20];
@@ -97,12 +99,25 @@ assign simm = instruction[31:20];
 wire signed [11:0] st_offset;
 assign st_offset = { funct7, instruction[11:7] };
 
+wire signed [11:0] ls_offset;
+assign ls_offset = op[2] == 0 ? simm : st_offset;
+
 wire [15:0] branch_address;
 assign branch_address = $signed(pc_current) + branch_offset;
 reg do_branch;
 
 reg [31:0] source;
 reg [31:0] result;
+reg [31:0] arg_1;
+wire [31:0] alu_result;
+
+wire [31:0] wb_result;
+assign wb_result = is_alu ? alu_result : result;
+
+reg [2:0] alu_op;
+reg is_alt;
+reg is_alu;
+reg [2:0] wb;
 
 // Load / Store.
 assign memory_size = instruction[14:12];
@@ -110,8 +125,8 @@ reg [31:0] ea;
 //reg [31:0] ea_aligned;
 
 // Lower 6 its of the instruction.
-wire [5:0] opcode;
-assign opcode = instruction[5:0];
+//wire [5:0] opcode;
+//assign opcode = instruction[5:0];
 
 // Debug.
 //reg [7:0] debug_0 = 0;
@@ -131,31 +146,52 @@ always @(posedge raw_clk) begin
     3'b000: begin column_value <= 4'b0111; leds_value <= ~registers[6][7:0]; end
     3'b010: begin column_value <= 4'b1011; leds_value <= ~registers[6][15:8]; end
     //3'b010: begin column_value <= 4'b1011; leds_value <= ~instruction[7:0]; end
+    //3'b010: begin column_value <= 4'b1011; leds_value <= ~pc[15:8]; end
     3'b100: begin column_value <= 4'b1101; leds_value <= ~pc[7:0]; end
     3'b110: begin column_value <= 4'b1110; leds_value <= ~state; end
     default: begin column_value <= 4'b1111; leds_value <= 8'hff; end
   endcase
 end
 
-parameter STATE_RESET =        0;
-parameter STATE_DELAY_LOOP =   1;
-parameter STATE_FETCH_OP_0 =   2;
-parameter STATE_FETCH_OP_1 =   3;
+parameter STATE_RESET        = 0;
+parameter STATE_DELAY_LOOP   = 1;
+parameter STATE_FETCH_OP_0   = 2;
+parameter STATE_FETCH_OP_1   = 3;
 parameter STATE_START_DECODE = 4;
-parameter STATE_FETCH_LOAD_0 = 5;
 
-parameter STATE_STORE_0 =      6;
-parameter STATE_STORE_1 =      7;
+parameter STATE_FETCH_LOAD   = 5;
+parameter STATE_STORE_0      = 6;
 
-parameter STATE_ALU_0 =        8;
-parameter STATE_ALU_1 =        9;
+parameter STATE_CONTROL      = 7;
+parameter STATE_LUI          = 8;
+parameter STATE_ALU_IMM      = 9;
+parameter STATE_ALU_REG      = 10;
 
-parameter STATE_BRANCH_1 =     10;
-parameter STATE_EXECUTE_E =    11;
+parameter STATE_BRANCH       = 11;
+parameter STATE_WRITEBACK    = 12;
 
-parameter STATE_DEBUG =        29;
-parameter STATE_ERROR =        30;
-parameter STATE_HALTED =       31;
+parameter STATE_DEBUG        = 13;
+parameter STATE_ERROR        = 14;
+parameter STATE_HALTED       = 15;
+
+parameter ALU_OP_ADD   = 0;
+parameter ALU_OP_SLL   = 1;
+parameter ALU_OP_SLT   = 2;
+parameter ALU_OP_SLTU  = 3;
+parameter ALU_OP_XOR   = 4;
+parameter ALU_OP_SRL   = 5;
+parameter ALU_OP_OR    = 6;
+parameter ALU_OP_AND   = 7;
+
+//parameter ALU_OP_SRA   = 5;
+
+//parameter ALU_OP_SUB   = 0;
+//parameter ALU_OP_NONE  = 15;
+
+parameter WB_NONE  = 0;
+parameter WB_RD    = 1;
+parameter WB_PC    = 2;
+parameter WB_BR    = 3;
 
 /*
 function signed [31:0] sign12(input signed [11:0] data);
@@ -194,7 +230,12 @@ always @(posedge clk) begin
         end
       STATE_FETCH_OP_0:
         begin
-          //registers[0] <= 0;
+          registers[0] <= 0;
+          wb        <= WB_RD;
+          is_alt    <= 0;
+          is_alu    <= 0;
+          //alu_op    <= ALU_OP_NONE;
+          do_branch <= 0;
           mem_bus_enable <= 1;
           mem_write_enable <= 0;
           mem_address <= pc;
@@ -210,103 +251,70 @@ always @(posedge clk) begin
         end
       STATE_START_DECODE:
         begin
-          case (op)
-            7'b0110111:
-              begin
-                // lui.
-                registers[rd] <= { instruction[31:12], 12'h000 };
-                state <= STATE_FETCH_OP_0;
-              end
-            7'b0010111:
-              begin
-                // auipc.
-                registers[rd] <= pc_current + { instruction[31:12], 12'b0 };
-                state <= STATE_FETCH_OP_0;
-              end
-            7'b1101111:
-              begin
-                // jal.
-                registers[rd] <= pc;
-
-                pc <= $signed(pc_current) + $signed( {
-                  instruction[31],
-                  instruction[19:12],
-                  instruction[20],
-                  instruction[30:21],
-                  1'b0
-                } );
-
-                state <= STATE_FETCH_OP_0;
-              end
-            7'b1100111:
-              begin
-                // jalr.
-                pc <= ($signed(registers[rs1]) + simm) & 16'hfffc;
-                registers[rd] <= pc;
-                state <= STATE_FETCH_OP_0;
-              end
-            7'b1100011:
-              begin
-                // branch.
-                source <= registers[rs2];
-                state <= STATE_BRANCH_1;
-              end
-            7'b0000011:
-              begin
-                // Load.
-                ea <= registers[rs1] + simm;
-                mem_bus_enable <= 1;
-                mem_write_enable <= 0;
-                mem_address <= registers[rs1] + simm;
-                state <= STATE_FETCH_LOAD_0;
-              end
-            7'b0100011:
-              begin
-                // Store.
-                ea <= registers[rs1] + st_offset;
-                mem_address <= registers[rs1] + st_offset;
-                mem_bus_enable <= 0;
-                state <= STATE_STORE_0;
-              end
-            7'b0010011:
-              begin
-                // ALU immediate.
-                case (funct3)
-                  3'b000: result <= $signed(registers[rs1]) + simm;
-                  3'b010: result <= $signed(registers[rs1]) < simm;
-                  3'b011: result <= $signed(registers[rs1]) < uimm;
-                  3'b100: result <= registers[rs1] ^ simm;
-                  3'b110: result <= registers[rs1] | simm;
-                  3'b111: result <= registers[rs1] & simm;
-                  // Shift.
-                  3'b001: result <= registers[rs1] << shamt;
-                  3'b101:
-                    if (funct7 == 0)
-                      result <= registers[rs1] >> shamt;
-                    else
-                      result <= $signed(registers[rs1]) >>> shamt;
+          case (op_lo)
+            3'b011:
+              if (op[3] == 0) begin
+                case (op[2:0])
+                  3'b000:
+                    begin
+                      // Load.
+                      ea <= registers[rs1] + simm;
+                      mem_address <= registers[rs1] + simm;
+                      mem_bus_enable <= 1;
+                      state <= STATE_FETCH_LOAD;
+                    end
+                  3'b010:
+                    begin
+                      // ALU Immediate.
+                      is_alu <= 1;
+                      state <= STATE_ALU_IMM;
+                    end
+                  3'b100:
+                    begin
+                      // Store.
+                      ea <= registers[rs1] + st_offset;
+                      mem_address <= registers[rs1] + st_offset;
+                      state <= STATE_STORE_0;
+                    end
+                  3'b110:
+                    begin
+                      // ALU Reg.
+                      is_alu <= 1;
+                      state <= STATE_ALU_REG;
+                    end
+                  default:
+                    begin
+                      state <= STATE_ERROR;
+                    end
                 endcase
-
-                state <= STATE_ALU_1;
+              end else begin
+                if (op[2:0] == 3'b100)
+                  // branch.
+                  state <= STATE_BRANCH;
+                else
+                  // 3'b110 is ebreak.
+                  state <= STATE_HALTED;
               end
-            7'b0110011:
+            3'b111:
               begin
-                // ALU reg, reg.
-                source <= registers[rs2];
-                state <= STATE_ALU_0;
+                // lui, auipc, jal, jalr
+                state <= op[3] == 0 ? STATE_LUI : STATE_CONTROL;
               end
-            7'b1110011:
-              begin
-                // ebreak.
-                state <= STATE_EXECUTE_E;
-              end
-            default
+            default:
               begin
                 state <= STATE_ERROR;
               end
           endcase
+
+          //ea <= registers[rs1] + ea_offset;
+          //mem_address <= registers[rs1] + ea_offset;
+
+          // FIXME: Can alu_op be a wire?
+          alu_op <= funct3;
+
+          source <= registers[rs1];
         end
-      STATE_FETCH_LOAD_0:
+      STATE_FETCH_LOAD:
         begin
             mem_bus_enable <= 0;
 
@@ -316,23 +324,23 @@ always @(posedge clk) begin
                   case (ea[1:0])
                     0:
                       begin
-                        registers[rd][7:0] <= mem_read[7:0];
-                        registers[rd][31:8] <= { {24{ mem_read[7] & ~memory_size[2] } } };
+                        result[7:0]  <= mem_read[7:0];
+                        result[31:8] <= { {24{ mem_read[7] & ~memory_size[2] } } };
                       end
                     1:
                       begin
-                        registers[rd][7:0] <= mem_read[15:8];
-                        registers[rd][31:8] <= { {24{ mem_read[15] & ~memory_size[2] } } };
+                        result[7:0]  <= mem_read[15:8];
+                        result[31:8] <= { {24{ mem_read[15] & ~memory_size[2] } } };
                       end
                     2:
                       begin
-                        registers[rd][7:0] <= mem_read[23:16];
-                        registers[rd][31:8] <= { {24{ mem_read[23] & ~memory_size[2] } } };
+                        result[7:0]  <= mem_read[23:16];
+                        result[31:8] <= { {24{ mem_read[23] & ~memory_size[2] } } };
                       end
                     3:
                       begin
-                        registers[rd][7:0] <= mem_read[31:24];
-                        registers[rd][31:8] <= { {24{ mem_read[31] & ~memory_size[2] } } };
+                        result[7:0]  <= mem_read[31:24];
+                        result[31:8] <= { {24{ mem_read[31] & ~memory_size[2] } } };
                       end
                   endcase
                 end
@@ -341,23 +349,23 @@ always @(posedge clk) begin
                   case (ea[1])
                     0:
                       begin
-                        registers[rd][15:0] <= mem_read[15:0];
-                        registers[rd][31:16] <= { {16{ mem_read[15] & ~memory_size[2] } } };
+                        result[15:0]  <= mem_read[15:0];
+                        result[31:16] <= { {16{ mem_read[15] & ~memory_size[2] } } };
                       end
                     1:
                       begin
-                        registers[rd][15:0] <= mem_read[31:16];
-                        registers[rd][31:16] <= { {16{ mem_read[31] & ~memory_size[2] } } };
+                        result[15:0]  <= mem_read[31:16];
+                        result[31:16] <= { {16{ mem_read[31] & ~memory_size[2] } } };
                       end
                   endcase
                 end
               3'b10:
                 begin
-                  registers[rd] <= mem_read;
+                  result <= mem_read;
                 end
             endcase
 
-            state <= STATE_FETCH_OP_0;
+            state <= STATE_WRITEBACK;
         end
       STATE_STORE_0:
         begin
@@ -376,7 +384,7 @@ always @(posedge clk) begin
               end
             3'b001:
               begin
-                mem_write[15:0] <= registers[rs2][15:0];
+                mem_write[15:0]  <= registers[rs2][15:0];
                 mem_write[31:16] <= registers[rs2][15:0];
 
                 mem_write_mask[0] <= ea[1:0] == 2;
@@ -391,19 +399,77 @@ always @(posedge clk) begin
               end
           endcase
 
+          wb <= WB_NONE;
           mem_write_enable <= 1;
-          mem_bus_enable <= 1;
-          state <= STATE_STORE_1;
+          mem_bus_enable   <= 1;
+          state <= STATE_WRITEBACK;
         end
-      STATE_STORE_1:
+      STATE_CONTROL:
         begin
-          mem_bus_enable <= 0;
-          mem_write_enable <= 0;
-          state <= STATE_FETCH_OP_0;
+          if (op[0] == 0)
+            // jalr.
+            result <= ($signed(source) + simm) & 16'hfffc;
+          else
+            // jal.
+            result <= $signed(pc_current) + $signed( {
+              instruction[31],
+              instruction[19:12],
+              instruction[20],
+              instruction[30:21],
+              1'b0
+            } );
+
+          registers[rd] <= pc;
+          wb <= WB_PC;
+          state <= STATE_WRITEBACK;
         end
-      STATE_ALU_0:
+      STATE_LUI:
+        begin
+          if (op[2] == 0) begin
+            // auipc.
+            result <= pc_current + { instruction[31:12], 12'b0 };
+          end else begin
+            // lui.
+            result <= { instruction[31:12], 12'h000 };
+          end
+
+          state <= STATE_WRITEBACK;
+        end
+      STATE_ALU_IMM:
+        begin
+          // ALU immediate.
+/*
+          case (funct3)
+            3'b000: result <= $signed(registers[rs1]) + simm;
+            3'b010: result <= $signed(registers[rs1]) < simm;
+            3'b011: result <= $signed(registers[rs1]) < uimm;
+            3'b100: result <= registers[rs1] ^ simm;
+            3'b110: result <= registers[rs1] | simm;
+            3'b111: result <= registers[rs1] & simm;
+            // Shift.
+            3'b001: result <= registers[rs1] << shamt;
+            3'b101:
+              if (funct7 == 0)
+                result <= registers[rs1] >> shamt;
+              else
+                result <= $signed(registers[rs1]) >>> shamt;
+          endcase
+*/
+
+          if (alu_op == ALU_OP_SLTU)
+            arg_1 <= uimm;
+          else if (alu_op == ALU_OP_SLL || alu_op == ALU_OP_SRL)
+            arg_1 <= shamt;
+          else
+            arg_1 <= simm;
+
+          is_alt <= funct7[5] && funct3 == ALU_OP_SRL;
+          state <= STATE_WRITEBACK;
+        end
+      STATE_ALU_REG:
         begin
           // ALU reg, reg.
+/*
           case (funct3)
             3'b000:
               case (funct7)
@@ -424,44 +490,56 @@ always @(posedge clk) begin
             3'b110: result <= registers[rs1] | source;
             3'b111: result <= registers[rs1] & source;
           endcase
+*/
 
-          state <= STATE_ALU_1;
+          //if (funct7[5] == 1) is_alt <= 1;
+          //is_alt <= funct7[5];
+
+          arg_1 <= registers[rs2];
+          is_alt <= funct7[5];
+          state <= STATE_WRITEBACK;
         end
-      STATE_ALU_1:
-        begin
-          registers[rd] <= result;
-          state <= STATE_FETCH_OP_0;
-        end
-      STATE_BRANCH_1:
+      STATE_BRANCH:
         begin
           case (funct3)
             3'b000:
-              if (registers[rs1] == source)
-                pc <= branch_address;
+              // beq.
+              if (source == registers[rs2]) do_branch <= 1;
             3'b001:
-              if (registers[rs1] != source)
-                pc <= branch_address;
+              // bne.
+              if (source != registers[rs2]) do_branch <= 1;
             3'b100:
-              if ($signed(registers[rs1]) < $signed(source))
-                pc <= branch_address;
+              // blt.
+              if ($signed(source) < $signed(registers[rs2])) do_branch <= 1;
             3'b101:
-              if ($signed(registers[rs1]) >= $signed(source))
-                pc <= branch_address;
+              // bge.
+              if ($signed(source) >= $signed(registers[rs2])) do_branch <= 1;
             3'b110:
-              if (registers[rs1] < source)
-                pc <= branch_address;
+              // bltu.
+              if (source < registers[rs2]) do_branch <= 1;
             3'b111:
-              if (registers[rs1] >= source)
-                pc <= branch_address;
+              // bgeu.
+              if (source >= registers[rs2]) do_branch <= 1;
           endcase
 
-          state <= STATE_FETCH_OP_0;
+          result <= branch_address;
+          wb     <= WB_BR;
+
+          state <= STATE_WRITEBACK;
         end
-      STATE_EXECUTE_E:
+      STATE_WRITEBACK:
         begin
-          // Since this core only supports "ebreak", send all instructions
-          // to the halted state.
-          state <= STATE_HALTED;
+          case (wb)
+            //WB_RD: if (rd != 0) registers[rd] <= result;
+            WB_RD: registers[rd] <= wb_result;
+            WB_PC: pc <= result;
+            WB_BR: if (do_branch) pc <= result;
+          endcase
+
+          mem_bus_enable   <= 0;
+          mem_write_enable <= 0;
+
+          state <= STATE_FETCH_OP_0;
         end
       STATE_DEBUG:
         begin
@@ -500,6 +578,14 @@ memory_bus memory_bus_0(
   .spi_clk      (spi_clk),
   .spi_mosi     (spi_mosi),
   .spi_miso     (spi_miso)
+);
+
+alu alu_0(
+  .source  (source),
+  .arg_1   (arg_1),
+  .alu_op  (alu_op),
+  .is_alt  (is_alt),
+  .result  (alu_result),
 );
 
 endmodule
