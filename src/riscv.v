@@ -453,25 +453,37 @@ always @(posedge clk) begin
         end
       STATE_BRANCH:
         begin
+/*
+          // This doesn't seem to lower the LUT count.
+
+          do_branch <=
+            funct3 == 3'b000 && source == arg_1 ||
+            funct3 == 3'b001 && source != arg_1 ||
+            funct3 == 3'b100 && $signed(source) <  $signed(arg_1) ||
+            funct3 == 3'b101 && $signed(source) >= $signed(arg_1) ||
+            funct3 == 3'b110 && source <  arg_1 ||
+            funct3 == 3'b111 && source >= arg_1;
+*/
+
           case (funct3)
             3'b000:
               // beq.
-              if (source == arg_1) do_branch <= 1;
+              do_branch <= source == arg_1;
             3'b001:
               // bne.
-              if (source != arg_1) do_branch <= 1;
+              do_branch <= source != arg_1;
             3'b100:
               // blt.
-              if ($signed(source) < $signed(arg_1)) do_branch <= 1;
+              do_branch <= $signed(source) < $signed(arg_1);
             3'b101:
               // bge.
-              if ($signed(source) >= $signed(arg_1)) do_branch <= 1;
+              do_branch <= $signed(source) >= $signed(arg_1);
             3'b110:
               // bltu.
-              if (source < arg_1) do_branch <= 1;
+              do_branch <= source < arg_1;
             3'b111:
               // bgeu.
-              if (source >= arg_1) do_branch <= 1;
+              do_branch <= source >= arg_1;
           endcase
 
           result <= branch_address;
