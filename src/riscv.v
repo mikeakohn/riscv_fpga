@@ -302,10 +302,9 @@ always @(posedge clk) begin
               end
           endcase
 
-          ea <= registers[rs1] + ls_offset;
-          mem_address <= registers[rs1] + ls_offset;
-
-          source <= registers[rs1];
+          source = registers[rs1];
+          ea = source + ls_offset;
+          mem_address = ea;
         end
       STATE_FETCH_LOAD:
         begin
