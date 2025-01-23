@@ -48,7 +48,7 @@ reg mem_write_enable = 0;
 // Clock.
 reg [21:0] count = 0;
 reg [4:0] state = 0;
-reg [19:0] clock_div;
+reg [3:0] clock_div;
 reg [14:0] delay_loop;
 wire clk;
 assign clk = clock_div[0];
