@@ -206,10 +206,10 @@ always @(posedge clk) begin
     case (state)
       STATE_RESET:
         begin
-          mem_address <= 0;
+          mem_address      <= 0;
           mem_write_enable <= 0;
-          mem_write <= 0;
-          instruction <= 0;
+          mem_write        <= 0;
+          //instruction <= 0;
           delay_loop <= 12000;
           state <= STATE_DELAY_LOOP;
         end
@@ -231,9 +231,9 @@ always @(posedge clk) begin
           is_alu    <= 0;
           //alu_op    <= ALU_OP_NONE;
           do_branch <= 0;
-          mem_bus_enable <= 1;
+          mem_bus_enable   <= 1;
           mem_write_enable <= 0;
-          mem_address <= pc;
+          mem_address      <= pc;
           pc_current = pc;
           pc <= pc + 4;
           state <= STATE_FETCH_OP_1;
@@ -251,17 +251,22 @@ always @(posedge clk) begin
           case (op_lo)
             3'b011:
               if (op[3] == 0) begin
+
+                // ALU immediate or register.
+                is_alu <= op[2:0] == 3'b010 || op[2:0] == 3'b110;
+
+                // Load.
+                mem_bus_enable <= op[2:0] == 3'b000;
+
                 case (op[2:0])
                   3'b000:
                     begin
                       // Load.
-                      mem_bus_enable <= 1;
                       state <= STATE_FETCH_LOAD;
                     end
                   3'b010:
                     begin
                       // ALU Immediate.
-                      is_alu <= 1;
                       state <= STATE_ALU_IMM;
                     end
                   3'b100:
@@ -272,7 +277,6 @@ always @(posedge clk) begin
                   3'b110:
                     begin
                       // ALU Reg.
-                      is_alu <= 1;
                       state <= STATE_ALU_REG;
                     end
                   default:
@@ -281,6 +285,8 @@ always @(posedge clk) begin
                     end
                 endcase
               end else begin
+                //state <= op[2:0] == 3'b100 ? STATE_BRANCH : STATE_HALTED;
+
                 if (op[2:0] == 3'b100)
                   // branch.
                   state <= STATE_BRANCH;
