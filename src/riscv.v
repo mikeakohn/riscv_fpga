@@ -117,7 +117,7 @@ wire [2:0] alu_op;
 assign alu_op = funct3;
 reg is_alt;
 reg is_alu;
-reg [2:0] wb;
+reg [1:0] wb;
 
 // Load / Store.
 assign memory_size = instruction[14:12];
@@ -160,7 +160,7 @@ parameter STATE_FETCH_OP_1   = 3;
 parameter STATE_START_DECODE = 4;
 
 parameter STATE_FETCH_LOAD   = 5;
-parameter STATE_STORE_0      = 6;
+parameter STATE_STORE        = 6;
 
 parameter STATE_CONTROL      = 7;
 parameter STATE_LUI          = 8;
@@ -183,15 +183,10 @@ parameter ALU_OP_SRL   = 5;
 parameter ALU_OP_OR    = 6;
 parameter ALU_OP_AND   = 7;
 
-//parameter ALU_OP_SRA   = 5;
-
-//parameter ALU_OP_SUB   = 0;
-//parameter ALU_OP_NONE  = 15;
-
 parameter WB_NONE  = 0;
 parameter WB_RD    = 1;
 parameter WB_PC    = 2;
-parameter WB_BR    = 3;
+//parameter WB_BR    = 3;
 
 /*
 function signed [31:0] sign12(input signed [11:0] data);
@@ -270,7 +265,7 @@ always @(posedge clk) begin
                   3'b100:
                     begin
                       // Store.
-                      state <= STATE_STORE_0;
+                      state <= STATE_STORE;
                     end
                   3'b110:
                     begin
@@ -359,7 +354,7 @@ always @(posedge clk) begin
 
             state <= STATE_WRITEBACK;
         end
-      STATE_STORE_0:
+      STATE_STORE:
         begin
           case (funct3)
             3'b000:
@@ -413,6 +408,7 @@ always @(posedge clk) begin
 
           registers[rd] <= pc;
           wb <= WB_PC;
+          do_branch <= 1;
           state <= STATE_WRITEBACK;
         end
       STATE_LUI:
@@ -471,18 +467,14 @@ always @(posedge clk) begin
           endcase
 
           result <= branch_address;
-          wb     <= WB_BR;
+          wb     <= WB_PC;
 
           state <= STATE_WRITEBACK;
         end
       STATE_WRITEBACK:
         begin
-          case (wb)
-            //WB_RD: if (rd != 0) registers[rd] <= result;
-            WB_RD: registers[rd] <= wb_result;
-            WB_PC: pc <= result;
-            WB_BR: if (do_branch) pc <= result;
-          endcase
+          if (wb == WB_RD) registers[rd] <= wb_result;
+          if (wb == WB_PC) if (do_branch) pc <= result;
 
           mem_bus_enable   <= 0;
           mem_write_enable <= 0;
