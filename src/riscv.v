@@ -240,8 +240,10 @@ always @(posedge clk) begin
         end
       STATE_FETCH_OP_1:
         begin
+          instruction = mem_read;
+          //arg_1 = registers[rs2];
+          arg_1 = registers[instruction[24:20]];
           mem_bus_enable <= 0;
-          instruction <= mem_read;
           state <= STATE_START_DECODE;
         end
       STATE_START_DECODE:
@@ -359,10 +361,10 @@ always @(posedge clk) begin
           case (funct3)
             3'b000:
               begin
-                mem_write[7:0]   <= registers[rs2][7:0];
-                mem_write[15:8]  <= registers[rs2][7:0];
-                mem_write[23:16] <= registers[rs2][7:0];
-                mem_write[31:24] <= registers[rs2][7:0];
+                mem_write[7:0]   <= arg_1[7:0];
+                mem_write[15:8]  <= arg_1[7:0];
+                mem_write[23:16] <= arg_1[7:0];
+                mem_write[31:24] <= arg_1[7:0];
 
                 mem_write_mask[0] <= ~(ea[1:0] == 0);
                 mem_write_mask[1] <= ~(ea[1:0] == 1);
@@ -371,8 +373,8 @@ always @(posedge clk) begin
               end
             3'b001:
               begin
-                mem_write[15:0]  <= registers[rs2][15:0];
-                mem_write[31:16] <= registers[rs2][15:0];
+                mem_write[15:0]  <= arg_1[15:0];
+                mem_write[31:16] <= arg_1[15:0];
 
                 mem_write_mask[0] <= ea[1:0] == 2;
                 mem_write_mask[1] <= ea[1:0] == 2;
@@ -381,7 +383,7 @@ always @(posedge clk) begin
               end
             3'b010:
               begin
-                mem_write <= registers[rs2];
+                mem_write <= arg_1;
                 mem_write_mask <= 4'b0000;
               end
           endcase
@@ -439,7 +441,7 @@ always @(posedge clk) begin
       STATE_ALU_REG:
         begin
           // ALU reg, reg.
-          arg_1 <= registers[rs2];
+          //arg_1 <= registers[rs2];
           is_alt <= funct7[5];
           state <= STATE_WRITEBACK;
         end
@@ -448,22 +450,22 @@ always @(posedge clk) begin
           case (funct3)
             3'b000:
               // beq.
-              if (source == registers[rs2]) do_branch <= 1;
+              if (source == arg_1) do_branch <= 1;
             3'b001:
               // bne.
-              if (source != registers[rs2]) do_branch <= 1;
+              if (source != arg_1) do_branch <= 1;
             3'b100:
               // blt.
-              if ($signed(source) < $signed(registers[rs2])) do_branch <= 1;
+              if ($signed(source) < $signed(arg_1)) do_branch <= 1;
             3'b101:
               // bge.
-              if ($signed(source) >= $signed(registers[rs2])) do_branch <= 1;
+              if ($signed(source) >= $signed(arg_1)) do_branch <= 1;
             3'b110:
               // bltu.
-              if (source < registers[rs2]) do_branch <= 1;
+              if (source < arg_1) do_branch <= 1;
             3'b111:
               // bgeu.
-              if (source >= registers[rs2]) do_branch <= 1;
+              if (source >= arg_1) do_branch <= 1;
           endcase
 
           result <= branch_address;

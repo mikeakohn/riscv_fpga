@@ -21,10 +21,10 @@ set_io --warn-no-port ioport_2  H12
 set_io --warn-no-port ioport_3  J12
 
 # SPI eeprom.
-set_io --warn-no-port eeprom_cs  E12
-set_io --warn-no-port eeprom_clk E14
-set_io --warn-no-port eeprom_di  F12
-set_io --warn-no-port eeprom_do  F14
+#set_io --warn-no-port eeprom_cs  E12
+#set_io --warn-no-port eeprom_clk E14
+#set_io --warn-no-port eeprom_di  F12
+#set_io --warn-no-port eeprom_do  F14
 
 # SPI peripheral.
 #set_io --warn-no-port spi_cs   J12
