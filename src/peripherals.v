@@ -15,7 +15,7 @@ module peripherals
   output reg [31:0] data_out,
   //output [7:0] debug,
   input  write_enable,
-  input  clk,
+  //input  clk,
   input  raw_clk,
   output speaker_p,
   output speaker_m,

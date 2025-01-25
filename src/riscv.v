@@ -109,29 +109,19 @@ reg [31:0] result;
 reg [31:0] arg_1;
 wire [31:0] alu_result;
 
-wire [31:0] wb_result;
-assign wb_result = is_alu ? alu_result : result;
-
 wire [2:0] alu_op;
 assign alu_op = funct3;
 reg is_alt;
 reg is_alu;
 reg [1:0] wb;
 
+wire [31:0] wb_result;
+assign wb_result = is_alu ? alu_result : result;
+
 // Load / Store.
 assign memory_size = instruction[14:12];
-reg [31:0] ea;
-//reg [31:0] ea_aligned;
-
-// Lower 6 its of the instruction.
-//wire [5:0] opcode;
-//assign opcode = instruction[5:0];
-
-// Debug.
-//reg [7:0] debug_0 = 0;
-//reg [7:0] debug_1 = 0;
-//reg [7:0] debug_2 = 0;
-//reg [7:0] debug_3 = 0;
+//reg [31:0] ea;
+reg [15:0] ea;
 
 // This block is simply a clock divider for the raw_clk.
 always @(posedge raw_clk) begin
@@ -526,7 +516,7 @@ memory_bus memory_bus_0(
   //.data_ready   (mem_data_ready),
   .bus_enable   (mem_bus_enable),
   .write_enable (mem_write_enable),
-  .clk          (clk),
+  //.clk          (clk),
   .raw_clk      (raw_clk),
   .speaker_p    (speaker_p),
   .speaker_m    (speaker_m),
