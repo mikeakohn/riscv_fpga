@@ -47,7 +47,6 @@ reg mem_write_enable = 0;
 
 // Clock.
 reg [21:0] count = 0;
-reg [4:0] state = 0;
 reg [3:0] clock_div;
 reg [14:0] delay_loop;
 wire clk;
@@ -173,6 +172,8 @@ parameter STATE_WRITEBACK    = 12;
 parameter STATE_DEBUG        = 13;
 parameter STATE_ERROR        = 14;
 parameter STATE_HALTED       = 15;
+
+reg [3:0] state = STATE_RESET;
 
 parameter ALU_OP_ADD   = 0;
 parameter ALU_OP_SLL   = 1;
