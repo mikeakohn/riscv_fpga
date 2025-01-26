@@ -7,6 +7,8 @@
 //
 // Copyright 2023-2025 by Michael Kohn
 
+`include "alu.vinc"
+
 module riscv
 (
   output [7:0] leds,
@@ -165,19 +167,9 @@ parameter STATE_HALTED       = 15;
 
 reg [3:0] state = STATE_RESET;
 
-parameter ALU_OP_ADD   = 0;
-parameter ALU_OP_SLL   = 1;
-parameter ALU_OP_SLT   = 2;
-parameter ALU_OP_SLTU  = 3;
-parameter ALU_OP_XOR   = 4;
-parameter ALU_OP_SRL   = 5;
-parameter ALU_OP_OR    = 6;
-parameter ALU_OP_AND   = 7;
-
 parameter WB_NONE  = 0;
 parameter WB_RD    = 1;
 parameter WB_PC    = 2;
-//parameter WB_BR    = 3;
 
 /*
 function signed [31:0] sign12(input signed [11:0] data);
@@ -200,7 +192,6 @@ always @(posedge clk) begin
           mem_address      <= 0;
           mem_write_enable <= 0;
           mem_write        <= 0;
-          //instruction <= 0;
           delay_loop <= 12000;
           state <= STATE_DELAY_LOOP;
         end
@@ -220,7 +211,6 @@ always @(posedge clk) begin
           wb        <= WB_RD;
           is_alt    <= 0;
           is_alu    <= 0;
-          //alu_op    <= ALU_OP_NONE;
           do_branch <= 0;
           mem_bus_enable   <= 1;
           mem_write_enable <= 0;
@@ -485,7 +475,7 @@ always @(posedge clk) begin
       STATE_WRITEBACK:
         begin
           if (wb == WB_RD) registers[rd] <= wb_result;
-          if (wb == WB_PC) if (do_branch) pc <= result;
+          if (wb == WB_PC) if (do_branch) pc <= result[15:0];
 
           mem_bus_enable   <= 0;
           mem_write_enable <= 0;

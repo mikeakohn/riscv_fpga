@@ -1,0 +1,18 @@
+// RISC-V FPGA Soft Processor
+//  Author: Michael Kohn
+//   Email: mike@mikekohn.net
+//     Web: https://www.mikekohn.net/
+//   Board: iceFUN iCE40 HX8K
+// License: MIT
+//
+// Copyright 2023-2025 by Michael Kohn
+
+parameter ALU_OP_ADD   = 0;
+parameter ALU_OP_SLL   = 1;
+parameter ALU_OP_SLT   = 2;
+parameter ALU_OP_SLTU  = 3;
+parameter ALU_OP_XOR   = 4;
+parameter ALU_OP_SRL   = 5;
+parameter ALU_OP_OR    = 6;
+parameter ALU_OP_AND   = 7;
+

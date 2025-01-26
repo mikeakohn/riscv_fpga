@@ -5,7 +5,7 @@
 //   Board: iceFUN iCE40 HX8K
 // License: MIT
 //
-// Copyright 2023 by Michael Kohn
+// Copyright 2023-2025 by Michael Kohn
 
 // This is a hardcoded program that blinks an external LED.
 

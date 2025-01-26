@@ -7,6 +7,8 @@
 //
 // Copyright 2023-2025 by Michael Kohn
 
+`include "alu.vinc"
+
 module alu
 (
   input [31:0] source,
@@ -15,15 +17,6 @@ module alu
   input is_alt,
   output reg [31:0] result
 );
-
-parameter ALU_OP_ADD   = 0;
-parameter ALU_OP_SLL   = 1;
-parameter ALU_OP_SLT   = 2;
-parameter ALU_OP_SLTU  = 3;
-parameter ALU_OP_XOR   = 4;
-parameter ALU_OP_SRL   = 5;
-parameter ALU_OP_OR    = 6;
-parameter ALU_OP_AND   = 7;
 
 always @ * begin
   case (alu_op)

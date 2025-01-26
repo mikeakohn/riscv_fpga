@@ -5,7 +5,7 @@
 //   Board: iceFUN iCE40 HX8K
 // License: MIT
 //
-// Copyright 2023 by Michael Kohn
+// Copyright 2023-2025 by Michael Kohn
 
 // This creates 1024 bytes of RAM on the FPGA itself. Written this
 // way makes it inferred by the IceStorm tools. It seems like it
