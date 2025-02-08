@@ -27,7 +27,9 @@ module peripherals
   input  reset,
   output spi_clk,
   output spi_mosi,
-  input  spi_miso
+  input  spi_miso,
+  output uart_tx_0,
+  input  uart_rx_0
 );
 
 reg [7:0] storage [3:0];
@@ -57,6 +59,14 @@ reg  [15:0] spi_tx_buffer;
 wire spi_busy;
 reg spi_start;
 reg spi_width_16;
+
+// UART 0.
+wire tx_busy;
+reg  tx_strobe = 0;
+reg  [7:0] tx_data;
+wire [7:0] rx_data;
+wire rx_ready;
+reg  rx_ready_clear = 0;
 
 /*
 reg [15:0] mandelbrot_r;
@@ -153,10 +163,14 @@ always @(posedge raw_clk) begin
       //5'hb: mandelbrot_r <= data_in;
       //5'hc: mandelbrot_i <= data_in;
       //5'hd: if (data_in[1] == 1) mandelbrot_start <= 1;
+      5'he: begin tx_data <= data_in; tx_strobe <= 1; end
     endcase
   end else begin
     if (spi_start && spi_busy) spi_start <= 0;
+    if (tx_strobe && tx_busy) tx_strobe <= 0;
     //if (mandelbrot_start && mandelbrot_busy) mandelbrot_start <= 0;
+
+    if (rx_ready_clear == 1) rx_ready_clear <= 0;
 
     if (enable) begin
       case (address[7:2])
@@ -170,6 +184,8 @@ always @(posedge raw_clk) begin
         //5'hc: data_out <= mandelbrot_i;
         //5'hd: data_out <= { 7'b0000000, mandelbrot_busy };
         //5'he: data_out <= { 12'b00000000000, mandelbrot_result };
+        5'hf: begin data_out <= rx_data; rx_ready_clear <= 1; end
+        5'h10: data_out <= { rx_ready, tx_busy };
         default: data_out <= 0;
       endcase
     end
@@ -187,6 +203,19 @@ spi spi_0
   .sclk     (spi_clk),
   .mosi     (spi_mosi),
   .miso     (spi_miso)
+);
+
+uart uart_0
+(       
+  .raw_clk        (raw_clk),
+  .tx_data        (tx_data),
+  .tx_strobe      (tx_strobe),
+  .tx_busy        (tx_busy),
+  .tx_pin         (uart_tx_0),
+  .rx_data        (rx_data),
+  .rx_ready       (rx_ready),
+  .rx_ready_clear (rx_ready_clear),
+  .rx_pin         (uart_rx_0)
 );
 
 endmodule

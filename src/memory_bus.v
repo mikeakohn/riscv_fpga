@@ -34,7 +34,9 @@ module memory_bus
   input  reset,
   output spi_clk,
   output spi_mosi,
-  input  spi_miso
+  input  spi_miso,
+  output uart_tx_0,
+  input  uart_rx_0
 );
 
 wire [31:0] rom_data_out;
@@ -95,7 +97,9 @@ peripherals peripherals_0(
   .reset        (reset),
   .spi_clk      (spi_clk),
   .spi_mosi     (spi_mosi),
-  .spi_miso     (spi_miso)
+  .spi_miso     (spi_miso),
+  .uart_tx_0    (uart_tx_0),
+  .uart_rx_0    (uart_rx_0)
 );
 
 ram ram_1(

@@ -32,6 +32,10 @@ set_io --warn-no-port spi_clk  K12
 set_io --warn-no-port spi_mosi K14
 set_io --warn-no-port spi_miso H11
 
+# UART 
+set_io --warn-no-port uart_tx_0 H3
+set_io --warn-no-port uart_rx_0 G3
+
 # Clock signal.
 set_io --warn-no-port raw_clk   P7
 

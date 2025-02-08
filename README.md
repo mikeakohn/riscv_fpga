@@ -108,6 +108,9 @@ The peripherals area contain the following:
 * 0x8020: ioport_A output (in my test case only 1 pin is connected)
 * 0x8024: MIDI note value (60-96) to play a tone on the speaker or 0 to stop
 * 0x8028: ioport_B output (3 pins)
+* 0x8038: UART TX buffer
+* 0x803c: UART RX buffer
+* 0x8040: UART status: bit 1: rx_ready, bit 0: tx_busy 
 
 IO
 --
@@ -133,6 +136,11 @@ buffer to be transmitted. Until the data is fully transmitted, bit 0
 will be set to 1 to let the user know the SPI bus is busy.
 
 There is also the ability to do 16 bit transfers by setting bit 2 to 1.
+
+UART
+----
+
+The UART runs only at 9600 baud. Reading from UART RX clears rx_ready.
 
 Mandelbrot
 ----------

@@ -26,7 +26,9 @@ module riscv
   input  button_0,
   output spi_clk,
   output spi_mosi,
-  input  spi_miso
+  input  spi_miso,
+  output uart_tx_0,
+  input  uart_rx_0
 );
 
 // iceFUN 8x4 LEDs used for debugging.
@@ -518,7 +520,9 @@ memory_bus memory_bus_0(
   .reset        (~button_reset),
   .spi_clk      (spi_clk),
   .spi_mosi     (spi_mosi),
-  .spi_miso     (spi_miso)
+  .spi_miso     (spi_miso),
+  .uart_tx_0    (uart_tx_0),
+  .uart_rx_0    (uart_rx_0)
 );
 
 alu alu_0(

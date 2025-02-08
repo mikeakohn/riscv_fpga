@@ -6,7 +6,8 @@ SOURCE= \
   src/peripherals.v \
   src/ram.v \
   src/rom.v \
-  src/spi.v
+  src/spi.v \
+  src/uart.v
 
 EXTRA_SOURCE= \
   src/eeprom.v \
