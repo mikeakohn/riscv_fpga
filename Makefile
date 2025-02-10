@@ -23,6 +23,9 @@ riscv_mandel:
 	nextpnr-ice40 -r --hx8k --json $(PROGRAM).json --package cb132 --asc $(PROGRAM).asc --opt-timing --pcf icefun.pcf
 	icepack $(PROGRAM).asc $(PROGRAM).bin
 
+timing:
+	icetime -t -d hx8k -p icefun.pcf $(PROGRAM).asc
+
 ciscv:
 	yosys -q -p "synth_ice40 -top $(PROGRAM) -json $(PROGRAM).json" $(SOURCE) $(EXTRA_SOURCE) src/ciscv.v
 	nextpnr-ice40 -r --hx8k --json $(PROGRAM).json --package cb132 --asc $(PROGRAM).asc --opt-timing --pcf icefun.pcf
@@ -73,6 +76,10 @@ branch:
 
 spi:
 	naken_asm -l -type bin -o rom.bin test/spi.asm
+	python3 tools/bin2txt.py rom.bin > rom.txt
+
+uart:
+	naken_asm -l -type bin -o rom.bin test/uart.asm
 	python3 tools/bin2txt.py rom.bin > rom.txt
 
 clean:

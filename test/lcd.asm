@@ -1,30 +1,10 @@
 .riscv
 
+.include "test/registers.inc"
+
 ;; Set to 0xc000 for eeprom.
 ;.org 0xc000
 .org 0x4000
-
-;; Registers.
-BUTTON     equ 0x00
-SPI_TX     equ 0x04
-SPI_RX     equ 0x08
-SPI_CTL    equ 0x0c
-PORT0      equ 0x20
-SOUND      equ 0x24
-SPI_IO     equ 0x28
-
-;; Bits in SPI_CTL.
-SPI_BUSY   equ 0x01
-SPI_START  equ 0x02
-SPI_16     equ 0x04
-
-;; Bits in SPI_IO.
-LCD_RES    equ 0x01
-LCD_DC     equ 0x02
-LCD_CS     equ 0x04
-
-;; Bits in PORT0
-LED0       equ 0x01
 
 COMMAND_DISPLAY_OFF     equ 0xae
 COMMAND_SET_REMAP       equ 0xa0
