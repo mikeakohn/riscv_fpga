@@ -29,7 +29,8 @@ default:
 
 tang_nano:
 	yosys -q \
-	  -p "read_verilog $(SOURCE); synth_gowin -json $(PROGRAM).json -family gw2a"
+	  -D TANG_NANO \
+	  -p "read_verilog src/riscv.v $(SOURCE); synth_gowin -json $(PROGRAM).json -family gw2a"
 	nextpnr-himbaechel -r \
 	  --json $(PROGRAM).json \
 	  --write $(PROGRAM)_pnr.json \
