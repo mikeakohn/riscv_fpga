@@ -11,8 +11,10 @@
 
 module riscv
 (
+`ifndef TANG_NANO
   output [7:0] leds,
   output [3:0] column,
+`endif
   input raw_clk,
   output speaker_p,
   output speaker_m,
@@ -31,12 +33,14 @@ module riscv
   input  uart_rx_0
 );
 
+`ifndef TANG_NANO
 // iceFUN 8x4 LEDs used for debugging.
 reg [7:0] leds_value;
 reg [3:0] column_value;
 
 assign leds = leds_value;
 assign column = column_value;
+`endif
 
 // Memory bus (ROM, RAM, peripherals).
 reg [15:0] mem_address = 0;
@@ -133,6 +137,7 @@ always @(posedge raw_clk) begin
   clock_div <= clock_div + 1;
 end
 
+`ifndef TANG_NANO
 // Debug: This block simply drives the 8x4 LEDs.
 always @(posedge raw_clk) begin
   case (count[9:7])
@@ -145,6 +150,7 @@ always @(posedge raw_clk) begin
     default: begin column_value <= 4'b1111; leds_value <= 8'hff; end
   endcase
 end
+`endif
 
 parameter STATE_RESET        = 0;
 parameter STATE_DELAY_LOOP   = 1;
