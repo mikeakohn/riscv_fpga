@@ -5,7 +5,7 @@
 //   Board: iceFUN iCE40 HX8K
 // License: MIT
 //
-// Copyright 2023-2025 by Michael Kohn
+// Copyright 2023-2026 by Michael Kohn
 
 // The purpose of this module is to route reads and writes to the 4
 // different memory banks. Originally the idea was to have ROM and RAM
@@ -40,17 +40,17 @@ module memory_bus
 );
 
 wire [31:0] rom_data_out;
-wire [31:0] ram_data_out;
+wire [31:0] ram_0_data_out;
 wire [31:0] peripherals_data_out;
-wire [31:0] block_ram_data_out;
+wire [31:0] ram_1_data_out;
 
-wire ram_write_enable;
+wire ram_0_write_enable;
 wire peripherals_write_enable;
-wire block_ram_write_enable;
+wire ram_1_write_enable;
 
-assign ram_write_enable = (address[15:14] == 2'b00) && write_enable;
+assign ram_0_write_enable       = (address[15:14] == 2'b00) && write_enable;
 assign peripherals_write_enable = (address[15:14] == 2'b10) && write_enable;
-assign block_ram_write_enable = (address[15:14] == 2'b11) && write_enable;
+assign ram_1_write_enable       = (address[15:14] == 2'b11) && write_enable;
 
 // FIXME: The RAM probably need an enable also.
 wire peripherals_enable;
@@ -59,8 +59,8 @@ assign peripherals_enable = (address[15:14] == 2'b10) && bus_enable;
 // Based on the selected bank of memory (address[15:14]) select if
 // memory should read from ram.v, rom.v, peripherals.v.
 assign data_out = address[15] == 0 ?
-  (address[14] == 0 ? ram_data_out         : rom_data_out) :
-  (address[14] == 0 ? peripherals_data_out : block_ram_data_out);
+  (address[14] == 0 ? ram_0_data_out       : rom_data_out) :
+  (address[14] == 0 ? peripherals_data_out : ram_1_data_out);
 
 rom rom_0(
   .address   (address[11:0]),
@@ -71,10 +71,10 @@ rom rom_0(
 ram ram_0(
   .address      (address[11:0]),
   .data_in      (data_in),
-  .data_out     (ram_data_out),
+  .data_out     (ram_0_data_out),
   //.debug        (debug),
   .write_mask   (write_mask),
-  .write_enable (ram_write_enable),
+  .write_enable (ram_0_write_enable),
   .clk          (raw_clk)
 );
 
@@ -105,10 +105,10 @@ peripherals peripherals_0(
 ram ram_1(
   .address      (address[11:0]),
   .data_in      (data_in),
-  .data_out     (block_ram_data_out),
+  .data_out     (ram_1_data_out),
   //.debug        (debug),
   .write_mask   (write_mask),
-  .write_enable (block_ram_write_enable),
+  .write_enable (ram_1_write_enable),
   .clk          (raw_clk)
 );
 

@@ -43,7 +43,10 @@ assign column = column_value;
 `endif
 
 // Memory bus (ROM, RAM, peripherals).
-reg [15:0] mem_address = 0;
+//reg [15:0] mem_address = 0;
+wire [15:0] mem_address =
+  state <= STATE_FETCH_OP_1 ? pc : { ea[15:2], 2'b00 };
+  //state == STATE_FETCH_OP_0 || STATE_FETCH_OP_1 ? pc : { ea[15:2], 2'b00 };
 reg [31:0] mem_write = 0;
 reg [3:0] mem_write_mask = 0;
 wire [31:0] mem_read;
@@ -197,7 +200,8 @@ always @(posedge clk) begin
     case (state)
       STATE_RESET:
         begin
-          mem_address      <= 0;
+          //mem_address      <= 0;
+          mem_bus_enable   <= 0;
           mem_write_enable <= 0;
           mem_write        <= 0;
           delay_loop <= 12000;
@@ -222,9 +226,8 @@ always @(posedge clk) begin
           do_branch <= 0;
           mem_bus_enable   <= 1;
           mem_write_enable <= 0;
-          mem_address      <= pc;
+          //mem_address      <= pc;
           pc_current = pc;
-          pc <= pc + 4;
           state <= STATE_FETCH_OP_1;
         end
       STATE_FETCH_OP_1:
@@ -237,6 +240,8 @@ always @(posedge clk) begin
         end
       STATE_START_DECODE:
         begin
+          pc <= pc + 4;
+
           case (op_lo)
             3'b011:
               if (op[3] == 0) begin
@@ -296,7 +301,7 @@ always @(posedge clk) begin
 
           source = registers[rs1];
           ea = source + ls_offset;
-          mem_address = ea;
+          //mem_address = ea;
         end
       STATE_FETCH_LOAD:
         begin
