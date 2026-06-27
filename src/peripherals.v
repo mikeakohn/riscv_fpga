@@ -1,11 +1,11 @@
-// RISC-V FPGA Soft Processor
+// RISC-V FPGA Processor
 //  Author: Michael Kohn
 //   Email: mike@mikekohn.net
 //     Web: https://www.mikekohn.net/
 //   Board: iceFUN iCE40 HX8K
 // License: MIT
 //
-// Copyright 2023-2025 by Michael Kohn
+// Copyright 2023-2026 by Michael Kohn
 
 module peripherals
 (
@@ -32,7 +32,7 @@ module peripherals
   input  uart_rx_0
 );
 
-reg [7:0] storage [3:0];
+//reg [7:0] storage [3:0];
 
 reg [15:0] speaker_value_high;
 reg [15:0] speaker_value_curr;

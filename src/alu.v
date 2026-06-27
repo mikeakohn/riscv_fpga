@@ -1,4 +1,4 @@
-// RISC-V FPGA Soft Processor
+// RISC-V FPGA Processor
 //  Author: Michael Kohn
 //   Email: mike@mikekohn.net
 //     Web: https://www.mikekohn.net/
