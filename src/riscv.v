@@ -1,11 +1,11 @@
-// RISC-V FPGA Soft Processor
+// RISC-V FPGA Processor
 //  Author: Michael Kohn
 //   Email: mike@mikekohn.net
 //     Web: https://www.mikekohn.net/
 //   Board: iceFUN iCE40 HX8K
 // License: MIT
 //
-// Copyright 2023-2025 by Michael Kohn
+// Copyright 2023-2026 by Michael Kohn
 
 `include "alu.vinc"
 
@@ -45,14 +45,16 @@ assign column = column_value;
 // Memory bus (ROM, RAM, peripherals).
 //reg [15:0] mem_address = 0;
 wire [15:0] mem_address =
-  state <= STATE_FETCH_OP_1 ? pc : { ea[15:2], 2'b00 };
+  state == STATE_FETCH_OP_0 ? pc : { ea[15:2], 2'b00 };
   //state == STATE_FETCH_OP_0 || STATE_FETCH_OP_1 ? pc : { ea[15:2], 2'b00 };
-reg [31:0] mem_write = 0;
-reg [3:0] mem_write_mask = 0;
+reg [31:0] mem_write;
+reg [3:0] mem_write_mask;
 wire [31:0] mem_read;
 //wire mem_data_ready;
-reg mem_bus_enable = 0;
-reg mem_write_enable = 0;
+//reg mem_bus_enable = 0;
+//reg mem_write_enable = 0;
+wire mem_bus_enable = state == STATE_FETCH_OP_0 || STATE_FETCH_LOAD || STATE_STORE;
+wire mem_write_enable = state == STATE_STORE;
 
 //wire [7:0] mem_debug;
 
@@ -62,6 +64,7 @@ reg [3:0] clock_div;
 reg [14:0] delay_loop;
 wire clk;
 assign clk = clock_div[0];
+//assign clk = raw_clk;
 
 // Registers.
 reg [31:0] registers [31:0];
@@ -201,9 +204,9 @@ always @(posedge clk) begin
       STATE_RESET:
         begin
           //mem_address      <= 0;
-          mem_bus_enable   <= 0;
-          mem_write_enable <= 0;
-          mem_write        <= 0;
+          //mem_bus_enable   <= 0;
+          //mem_write_enable <= 0;
+          //mem_write        <= 0;
           delay_loop <= 12000;
           state <= STATE_DELAY_LOOP;
         end
@@ -224,23 +227,28 @@ always @(posedge clk) begin
           is_alt    <= 0;
           is_alu    <= 0;
           do_branch <= 0;
-          mem_bus_enable   <= 1;
-          mem_write_enable <= 0;
+          //mem_bus_enable   <= 1;
           //mem_address      <= pc;
           pc_current = pc;
-          state <= STATE_FETCH_OP_1;
-        end
-      STATE_FETCH_OP_1:
-        begin
+
           instruction = mem_read;
-          //arg_1 = registers[rs2];
-          arg_1 = registers[instruction[24:20]];
-          mem_bus_enable <= 0;
+
           state <= STATE_START_DECODE;
         end
+/*
+      STATE_FETCH_OP_1:
+        begin
+          //instruction = mem_read;
+          //mem_bus_enable <= 0;
+          state <= STATE_START_DECODE;
+        end
+*/
       STATE_START_DECODE:
         begin
           pc <= pc + 4;
+
+          //arg_1 = registers[instruction[24:20]];
+          arg_1 = registers[rs2];
 
           case (op_lo)
             3'b011:
@@ -250,7 +258,7 @@ always @(posedge clk) begin
                 is_alu <= op[2:0] == 3'b010 || op[2:0] == 3'b110;
 
                 // Load.
-                mem_bus_enable <= op[2:0] == 3'b000;
+                //mem_bus_enable <= op[2:0] == 3'b000;
 
                 case (op[2:0])
                   3'b000:
@@ -305,7 +313,7 @@ always @(posedge clk) begin
         end
       STATE_FETCH_LOAD:
         begin
-            mem_bus_enable <= 0;
+            //mem_bus_enable <= 0;
 
             case (memory_size[1:0])
               3'b00:
@@ -358,6 +366,7 @@ always @(posedge clk) begin
         end
       STATE_STORE:
         begin
+/*
           case (funct3)
             3'b000:
               begin
@@ -387,10 +396,11 @@ always @(posedge clk) begin
                 mem_write_mask <= 4'b0000;
               end
           endcase
+*/
 
           wb <= WB_NONE;
-          mem_write_enable <= 1;
-          mem_bus_enable   <= 1;
+          //mem_write_enable <= 1;
+          //mem_bus_enable   <= 1;
           state <= STATE_WRITEBACK;
         end
       STATE_CONTROL:
@@ -490,8 +500,8 @@ always @(posedge clk) begin
           if (wb == WB_RD) registers[rd] <= wb_result;
           if (wb == WB_PC) if (do_branch) pc <= result[15:0];
 
-          mem_bus_enable   <= 0;
-          mem_write_enable <= 0;
+          //mem_bus_enable   <= 0;
+          //mem_write_enable <= 0;
 
           state <= STATE_FETCH_OP_0;
         end
@@ -508,6 +518,39 @@ always @(posedge clk) begin
           state <= STATE_HALTED;
         end
     endcase
+end
+
+always @ * begin
+  case (funct3)
+    3'b000:
+      begin
+        mem_write[7:0]   <= arg_1[7:0];
+        mem_write[15:8]  <= arg_1[7:0];
+        mem_write[23:16] <= arg_1[7:0];
+        mem_write[31:24] <= arg_1[7:0];
+
+        mem_write_mask[0] <= ~(ea[1:0] == 0);
+        mem_write_mask[1] <= ~(ea[1:0] == 1);
+        mem_write_mask[2] <= ~(ea[1:0] == 2);
+        mem_write_mask[3] <= ~(ea[1:0] == 3);
+      end
+    3'b001:
+      begin
+        mem_write[15:0]  <= arg_1[15:0];
+        mem_write[31:16] <= arg_1[15:0];
+
+        mem_write_mask[0] <= ea[1:0] == 2;
+        mem_write_mask[1] <= ea[1:0] == 2;
+        mem_write_mask[2] <= ea[1:0] == 0;
+        mem_write_mask[3] <= ea[1:0] == 0;
+      end
+    //3'b010:
+    default:
+      begin
+        mem_write <= arg_1;
+        mem_write_mask <= 4'b0000;
+      end
+  endcase
 end
 
 memory_bus memory_bus_0(
